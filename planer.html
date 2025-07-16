@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hochzeitsplaner</title>
+    <script src="https://cdn.tailwindcss.com">
+	// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyADtOUtr8nCF24kgYw5DsGJyb07Uu0Jq9c",
+  authDomain: "my-project-1692717419325.firebaseapp.com",
+  projectId: "my-project-1692717419325",
+  storageBucket: "my-project-1692717419325.firebasestorage.app",
+  messagingSenderId: "961155997056",
+  appId: "1:961155997056:web:5796460ec678e703267565"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+	</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark Blue-Gray Background */
+            color: #e2e8f0; /* Light Gray Text */
+        }
+        .font-serif {
+            font-family: 'Playfair Display', serif;
+            color: #4fd1c5; /* Turquoise */
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            color: #a0aec0; /* Medium Gray Text */
+        }
+        .tab-button.active {
+            border-color: #4fd1c5; /* Turquoise */
+            color: #4fd1c5; /* Turquoise */
+            background-color: #2d3748; /* Darker Card Background */
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background-color: #2d3748; /* Dark Card Background */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #4a5568;
+        }
+        .card.overdue {
+            border-color: #ef4444;
+            background-color: #452020;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #4fd1c5;
+        }
+        .btn-primary {
+            background-color: #4fd1c5; /* Turquoise */
+            color: #1a202c; /* Dark Text for contrast */
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #38b2ac; /* Darker Turquoise */
+        }
+        .btn-secondary {
+            background-color: #4a5568;
+            color: #e2e8f0;
+        }
+        .btn-secondary:hover {
+            background-color: #718096;
+        }
+        .btn-danger {
+            background-color: #f56565;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #e53e3e;
+        }
+        input, select, textarea {
+            background-color: #4a5568;
+            color: #e2e8f0;
+            border-color: #718096;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #4fd1c5; /* Turquoise */
+            box-shadow: 0 0 0 1px #4fd1c5;
+            outline: none;
+        }
+        /* Modal styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 40;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 500px;
+            z-index: 50;
+        }
+        /* Venn Diagram Styles */
+        .venn-container {
+            position: relative;
+            width: 220px;
+            height: 150px;
+            margin: 20px auto;
+        }
+        .venn-circle {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1a202c;
+            text-align: center;
+        }
+        .venn-circle-civil {
+            background-color: rgba(79, 209, 197, 0.7); /* Turquoise transparent */
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .venn-circle-reception {
+            background-color: rgba(44, 122, 123, 0.7); /* Dark Turquoise transparent */
+            top: 0;
+            left: 70px;
+            z-index: 1;
+        }
+        .venn-overlap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #e2e8f0;
+        }
+        .venn-label {
+             position: absolute;
+             bottom: -5px;
+             font-size: 0.8rem;
+             color: #a0aec0;
+             width: 100px;
+             text-align: center;
+        }
+        .status-badge, .priority-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .status-paid, .status-erledigt, .status-beauftragt, .status-zugesagt {
+            background-color: #10B981; color: #ffffff;
+        }
+        .status-open, .priority-hoch, .status-abgelehnt, .status-abgesagt {
+            background-color: #EF4444; color: #ffffff;
+        }
+        .status-in-bearbeitung, .priority-mittel, .status-in-entscheidung, .status-angezahlt, .status-eingeladen {
+            background-color: #F59E0B; color: #ffffff;
+        }
+        .priority-niedrig, .status-geplante-einladung {
+            background-color: #4A5568; color: #E2E8F0;
+        }
+        .chart-bar-bg {
+            background-color: #4a5568;
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+        .chart-bar {
+            background-color: #4fd1c5; /* Turquoise */
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-serif">Unser Hochzeitsplaner</h1>
+            <p class="text-lg mt-2 text-gray-400">Planen Sie Ihren perfekten Tag</p>
+             <div class="mt-4 text-center">
+                <div class="card max-w-lg mx-auto p-4">
+                    <label for="wedding-date" class="block text-sm font-medium text-gray-300">Hochzeitsdatum</label>
+                    <input type="date" id="wedding-date" class="p-2 rounded-md border w-full max-w-xs mx-auto mt-1">
+                    <div id="countdown-timer" class="flex justify-center space-x-2 sm:space-x-4 mt-4 text-gray-200">
+                        <div><span id="days" class="text-2xl sm:text-4xl font-bold">00</span><span class="block text-xs">Tage</span></div>
+                        <div><span id="hours" class="text-2xl sm:text-4xl font-bold">00</span><span class="block text-xs">Stunden</span></div>
+                        <div><span id="minutes" class="text-2xl sm:text-4xl font-bold">00</span><span class="block text-xs">Minuten</span></div>
+                        <div><span id="seconds" class="text-2xl sm:text-4xl font-bold">00</span><span class="block text-xs">Sekunden</span></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tabs Navigation -->
+        <nav class="mb-8 overflow-x-auto pb-2">
+            <ul class="flex border-b border-gray-700 space-x-2 sm:space-x-4">
+                <li><button onclick="showTab('dashboard')" class="tab-button active text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Dashboard</button></li>
+                <li><button onclick="showTab('todos')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">To-Do</button></li>
+                <li><button onclick="showTab('schedule')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Tagesplan</button></li>
+                <li><button onclick="showTab('guests')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Gäste</button></li>
+                <li><button onclick="showTab('finances')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Finanzen</button></li>
+                <li><button onclick="showTab('providers')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Dienstleister</button></li>
+                <li><button onclick="showTab('moodboard')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Moodboard</button></li>
+                <li><button onclick="showTab('honeymoon')" class="tab-button text-sm sm:text-base whitespace-nowrap px-4 py-3 border-b-2 border-transparent font-medium rounded-t-lg">Flitterwochen</button></li>
+            </ul>
+        </nav>
+
+        <!-- Tab Content -->
+        <main>
+            <!-- Dashboard -->
+            <div id="dashboard" class="tab-content active">
+                <h2 class="text-2xl font-serif mb-6">Übersicht</h2>
+                
+                <!-- Top Row: Image and Overdue Todos -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="card p-4 lg:col-span-2">
+                        <h3 class="text-xl font-serif mb-2 text-center">Unser schönster Moment</h3>
+                        <img id="dashboard-image" src="https://placehold.co/800x400/1a202c/4fd1c5?text=Unser+Foto" alt="Hochzeitsfoto" class="w-full h-auto object-cover rounded-lg aspect-video max-h-[450px]">
+                        <div class="mt-2 text-center">
+                            <label for="image-upload-input" class="btn-primary font-bold py-2 px-4 rounded-lg cursor-pointer inline-block">Bild hochladen</label>
+                            <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+                         </div>
+                    </div>
+                    <div class="card p-6 lg:col-span-1">
+                        <h3 class="text-xl font-serif mb-4">Dringende Aufgaben</h3>
+                        <div id="overdue-todos-dashboard" class="space-y-2 max-h-[450px] overflow-y-auto">
+                           <p class="text-gray-400">Keine fälligen Aufgaben. Gut gemacht!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Second Row: Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="card p-6">
+                        <h3 class="text-xl font-serif mb-4">Budget-Übersicht</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center"><span class="text-gray-400">Gesamtbudget:</span><span id="dashboard-budget-total" class="font-bold text-lg">0 €</span></div>
+                            <div class="flex justify-between items-center"><span class="text-gray-400">Bezahlt:</span><span id="dashboard-expenses-paid" class="font-bold text-lg text-green-400">0 €</span></div>
+                            <div class="flex justify-between items-center"><span class="text-gray-400">Offen:</span><span id="dashboard-expenses-open" class="font-bold text-lg text-yellow-400">0 €</span></div>
+                            <hr class="my-2 border-gray-600">
+                            <div class="flex justify-between items-center"><span class="font-bold">Verbleibend:</span><span id="dashboard-budget-remaining" class="font-bold text-xl">0 €</span></div>
+                        </div>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-xl font-serif mb-4 text-center">Gäste pro Ereignis</h3>
+                        <div class="venn-container">
+                            <div class="venn-circle venn-circle-civil"><span id="venn-civil-only">0</span><div class="venn-label" style="left: 25px;">Nur Standesamt</div></div>
+                            <div class="venn-circle venn-circle-reception"><span id="venn-reception-only">0</span><div class="venn-label" style="left: 95px;">Nur Feier</div></div>
+                            <div class="venn-overlap"><span id="venn-both">0</span></div>
+                        </div>
+                    </div>
+                     <div class="card p-6">
+                        <h3 class="text-xl font-serif mb-4">Gästestatus-Verteilung</h3>
+                        <div class="max-w-xs mx-auto">
+                            <canvas id="guest-status-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- To-Do List -->
+            <div id="todos" class="tab-content">
+                <h2 class="text-2xl font-serif mb-6">To-Do Liste</h2>
+                <div class="card p-6 mb-6">
+                    <form id="todo-form" class="space-y-4">
+                        <input type="text" id="todo-task" placeholder="Neue Aufgabe..." class="p-2 rounded-md border w-full" required>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label for="todo-category" class="text-sm font-medium text-gray-300">Kategorie</label>
+                                <select id="todo-category" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Essen</option>
+                                    <option>Kleidung</option>
+                                    <option>Dienstleister</option>
+                                    <option>Unterhaltung</option>
+                                    <option>Papiere</option>
+                                    <option>Sonstiges</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="todo-priority" class="text-sm font-medium text-gray-300">Priorität</label>
+                                <select id="todo-priority" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Hoch</option>
+                                    <option>Mittel</option>
+                                    <option>Niedrig</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="todo-responsibility" class="text-sm font-medium text-gray-300">Verantwortlich</label>
+                                <select id="todo-responsibility" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Beide</option>
+                                    <option>Braut</option>
+                                    <option>Bräutigam</option>
+                                    <option>Trauzeug*in</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="todo-due-date" class="text-sm font-medium text-gray-300">Fällig bis</label>
+                                <input type="date" id="todo-due-date" class="p-2 rounded-md border w-full mt-1">
+                            </div>
+                        </div>
+                         <div class="flex items-center justify-between">
+                            <select id="todo-status" class="p-2 rounded-md border" required>
+                                <option value="Offen">Offen</option>
+                                <option value="In Bearbeitung">In Bearbeitung</option>
+                                <option value="Erledigt">Erledigt</option>
+                            </select>
+                            <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg">Aufgabe hinzufügen</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="todos-list" class="space-y-4"></div>
+            </div>
+            
+            <!-- Schedule -->
+            <div id="schedule" class="tab-content">
+                 <h2 class="text-2xl font-serif mb-6">Tagesplan</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-serif mb-4">Standesamt</h3>
+                        <div class="card p-6 mb-6">
+                            <form id="schedule-civil-form" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label for="schedule-civil-start" class="text-sm font-medium">Start</label><input type="time" id="schedule-civil-start" class="p-2 mt-1 rounded-md border w-full" required></div>
+                                    <div><label for="schedule-civil-end" class="text-sm font-medium">Ende</label><input type="time" id="schedule-civil-end" class="p-2 mt-1 rounded-md border w-full" required></div>
+                                </div>
+                                <input type="text" id="schedule-civil-desc" placeholder="Programmpunkt" class="p-2 rounded-md border w-full" required>
+                                <input type="text" id="schedule-civil-location" placeholder="Ort" class="p-2 rounded-md border w-full">
+                                <input type="text" id="schedule-civil-people" placeholder="Beteiligte Personen" class="p-2 rounded-md border w-full">
+                                <input type="text" id="schedule-civil-provider" placeholder="Verantwortlicher Dienstleister" class="p-2 rounded-md border w-full">
+                                <textarea id="schedule-civil-notes" placeholder="Notizen..." class="p-2 rounded-md border w-full" rows="2"></textarea>
+                                <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg w-full">Punkt hinzufügen</button>
+                            </form>
+                        </div>
+                        <div id="schedule-civil-list" class="space-y-4"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-serif mb-4">Feier</h3>
+                        <div class="card p-6 mb-6">
+                            <form id="schedule-reception-form" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label for="schedule-reception-start" class="text-sm font-medium">Start</label><input type="time" id="schedule-reception-start" class="p-2 mt-1 rounded-md border w-full" required></div>
+                                    <div><label for="schedule-reception-end" class="text-sm font-medium">Ende</label><input type="time" id="schedule-reception-end" class="p-2 mt-1 rounded-md border w-full" required></div>
+                                </div>
+                                <input type="text" id="schedule-reception-desc" placeholder="Programmpunkt" class="p-2 rounded-md border w-full" required>
+                                <input type="text" id="schedule-reception-location" placeholder="Ort" class="p-2 rounded-md border w-full">
+                                <input type="text" id="schedule-reception-people" placeholder="Beteiligte Personen" class="p-2 rounded-md border w-full">
+                                <input type="text" id="schedule-reception-provider" placeholder="Verantwortlicher Dienstleister" class="p-2 rounded-md border w-full">
+                                <textarea id="schedule-reception-notes" placeholder="Notizen..." class="p-2 rounded-md border w-full" rows="2"></textarea>
+                                <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg w-full">Punkt hinzufügen</button>
+                            </form>
+                        </div>
+                        <div id="schedule-reception-list" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Finances -->
+            <div id="finances" class="tab-content">
+                <h2 class="text-2xl font-serif mb-6">Finanzen</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-1 space-y-8">
+                         <div class="card p-6">
+                            <h3 class="text-xl font-serif mb-4">Finanz-Übersicht</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Gesamtbudget:</span><span id="finances-budget-total" class="font-bold text-lg">0 €</span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Gesamtausgaben:</span><span id="finances-expenses-total" class="font-bold text-lg text-red-400">0 €</span></div>
+                                <hr class="my-1 border-gray-600">
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Bezahlt:</span><span id="finances-expenses-paid" class="font-bold text-lg text-green-400">0 €</span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Offen:</span><span id="finances-expenses-open" class="font-bold text-lg text-yellow-400">0 €</span></div>
+                                <hr class="my-2 border-gray-600">
+                                <div class="flex justify-between items-center"><span class="font-bold">Verbleibend:</span><span id="finances-budget-remaining" class="font-bold text-xl">0 €</span></div>
+                            </div>
+                        </div>
+                         <div class="card p-6">
+                            <h3 class="text-xl font-serif mb-4">Gesamtbudget festlegen</h3>
+                            <form id="budget-form" class="space-y-4">
+                                <div><label for="total-budget" class="block text-sm font-medium">Budget in EUR</label><input type="number" id="total-budget" placeholder="z.B. 15000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"></div>
+                                <button type="submit" class="w-full btn-primary font-bold py-2 px-4 rounded-lg">Budget festlegen</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <h3 class="text-xl font-serif mb-4">Manuelle Ausgaben</h3>
+                        <div class="card p-6 mb-6">
+                            <form id="expense-form" class="space-y-4">
+                                <input type="text" id="expense-item" placeholder="Posten (z.B. Deko)" class="p-2 rounded-md border w-full" required>
+                                <div>
+                                    <label class="text-sm font-medium">Art der Ausgabe</label>
+                                    <div class="flex gap-4 mt-1">
+                                        <label class="flex items-center"><input type="radio" name="expense-type" value="fixed" checked class="h-4 w-4"> <span class="ml-2">Fixkosten</span></label>
+                                        <label class="flex items-center"><input type="radio" name="expense-type" value="dynamic" class="h-4 w-4"> <span class="ml-2">Dynamisch (pro Gast)</span></label>
+                                    </div>
+                                </div>
+                                <div id="expense-cost-fields">
+                                    <!-- Fields will be injected by JS -->
+                                </div>
+                                <div id="expense-dynamic-options" class="hidden space-y-2">
+                                    <label class="text-sm font-medium">Anwenden auf zugesagte Gäste für:</label>
+                                    <select id="expense-applies-to" class="p-2 rounded-md border w-full">
+                                        <option value="reception">Nur Feier</option>
+                                        <option value="civil">Nur Standesamt</option>
+                                        <option value="both">Standesamt & Feier</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <select id="expense-status" class="p-2 rounded-md border" required>
+                                        <option value="Offen">Offen</option>
+                                        <option value="Bezahlt">Bezahlt</option>
+                                    </select>
+                                    <input type="text" id="expense-payer" placeholder="Wer zahlt?" class="p-2 rounded-md border">
+                                    <div class="sm:col-span-2">
+                                        <label for="expense-due-date" class="text-sm text-gray-500">Fällig bis</label>
+                                        <input type="date" id="expense-due-date" class="p-2 rounded-md border w-full">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg w-full">Ausgabe hinzufügen</button>
+                            </form>
+                        </div>
+                        <div id="expenses-list" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guests -->
+            <div id="guests" class="tab-content">
+                <h2 class="text-2xl font-serif mb-4">Gästeliste</h2>
+                <div class="card p-6 mb-6">
+                    <form id="guest-form" class="space-y-4">
+                         <input type="text" id="guest-name" placeholder="Name des Gastes" class="p-2 rounded-md border w-full" required>
+                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="guest-relationship" class="block text-sm font-medium">Beziehung</label>
+                                <select id="guest-relationship" class="p-2 rounded-md border w-full mt-1">
+                                    <option value="Freund*in (Braut)">Freund*in (Braut)</option>
+                                    <option value="Freund*in (Bräutigam)">Freund*in (Bräutigam)</option>
+                                    <option value="Familie (Braut)">Familie (Braut)</option>
+                                    <option value="Familie (Bräutigam)">Familie (Bräutigam)</option>
+                                    <option value="Trauzeug*in (Braut)">Trauzeug*in (Braut)</option>
+                                    <option value="Trauzeug*in (Bräutigam)">Trauzeug*in (Bräutigam)</option>
+                                    <option value="Sonstige">Sonstige</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="guest-status" class="block text-sm font-medium">Status</label>
+                                <select id="guest-status" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Geplante Einladung</option>
+                                    <option>Eingeladen</option>
+                                    <option>Zugesagt</option>
+                                    <option>Abgesagt</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-2">
+                                 <label for="guest-notes" class="block text-sm font-medium">Allergien/Alkohol Notizen</label>
+                                 <textarea id="guest-notes" placeholder="z.B. Laktoseintoleranz, kein Alkohol" class="p-2 rounded-md border w-full mt-1" rows="2"></textarea>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium">Eingeladen zu:</label>
+                                <div class="mt-2 flex gap-4">
+                                     <label class="flex items-center"><input type="checkbox" id="guest-attends-civil" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"> <span class="ml-2">Standesamt</span></label>
+                                     <label class="flex items-center"><input type="checkbox" id="guest-attends-reception" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"> <span class="ml-2">Feier</span></label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg w-full">Gast hinzufügen</button>
+                    </form>
+                </div>
+                <div id="guests-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+
+            <!-- Providers -->
+            <div id="providers" class="tab-content">
+                <h2 class="text-2xl font-serif mb-4">Dienstleister</h2>
+                 <div class="card p-6 mb-6">
+                    <form id="provider-form" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="provider-name" class="text-sm font-medium">Anbietername</label>
+                                <input type="text" id="provider-name" placeholder="z.B. Blumen & Co." class="p-2 rounded-md border w-full mt-1" required>
+                            </div>
+                            <div>
+                                <label for="provider-category" class="text-sm font-medium">Kategorie</label>
+                                <select id="provider-category" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Location</option>
+                                    <option>Catering</option>
+                                    <option>Fotograf</option>
+                                    <option>Musik</option>
+                                    <option>Kleidung</option>
+                                    <option>Blumen & Deko</option>
+                                    <option>Sonstiges</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label for="provider-contact" class="text-sm font-medium">Kontaktperson</label>
+                                <input type="text" id="provider-contact" class="p-2 rounded-md border w-full mt-1">
+                            </div>
+                            <div>
+                                <label for="provider-phone" class="text-sm font-medium">Telefon</label>
+                                <input type="tel" id="provider-phone" class="p-2 rounded-md border w-full mt-1">
+                            </div>
+                            <div>
+                                <label for="provider-email" class="text-sm font-medium">E-Mail</label>
+                                <input type="email" id="provider-email" class="p-2 rounded-md border w-full mt-1">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="provider-price" class="text-sm font-medium">Vereinbarter Preis (€)</label>
+                            <input type="number" id="provider-price" placeholder="0.00" class="p-2 rounded-md border w-full mt-1">
+                        </div>
+                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-sm">Status</label>
+                                <select id="provider-status" class="p-2 rounded-md border w-full mt-1">
+                                    <option>In Entscheidung</option>
+                                    <option>Beauftragt</option>
+                                    <option>Abgelehnt</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm">Zahlungsstatus</label>
+                                <select id="provider-payment-status" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Offen</option>
+                                    <option>Angezahlt</option>
+                                    <option>Bezahlt</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm">Wer zahlt?</label>
+                                <select id="provider-payer" class="p-2 rounded-md border w-full mt-1">
+                                    <option>Brautpaar</option>
+                                    <option>Eltern der Braut</option>
+                                    <option>Eltern des Bräutigams</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="provider-contract" class="text-sm font-medium">Vertrag (Link)</label>
+                            <input type="url" id="provider-contract" placeholder="https://..." class="p-2 rounded-md border w-full mt-1">
+                        </div>
+                        <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg w-full">Dienstleister hinzufügen</button>
+                    </form>
+                 </div>
+                <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- Moodboard -->
+            <div id="moodboard" class="tab-content">
+                <h2 class="text-2xl font-serif mb-4">Moodboard</h2>
+                 <div class="card p-6 mb-6">
+                    <form id="moodboard-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <input type="url" id="moodboard-image" placeholder="Bild-URL" class="p-2 rounded-md border" required>
+                        <input type="text" id="moodboard-desc" placeholder="Beschreibung" class="p-2 rounded-md border" required>
+                        <button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg">Bild hinzufügen</button>
+                    </form>
+                </div>
+                <div id="moodboard-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+
+            <!-- Honeymoon -->
+            <div id="honeymoon" class="tab-content">
+                 <h2 class="text-2xl font-serif mb-4">Flitterwochen</h2>
+                 <div class="card p-6 mb-6"><form id="honeymoon-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"><input type="text" id="honeymoon-dest" placeholder="Reiseziel" class="p-2 rounded-md border" required><textarea id="honeymoon-plan" placeholder="Plan / Notizen" class="p-2 rounded-md border md:col-span-2" rows="1"></textarea><button type="submit" class="btn-primary font-bold py-2 px-4 rounded-lg md:col-span-3">Plan hinzufügen</button></form></div>
+                <div id="honeymoon-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 class="text-xl font-serif mb-4" id="modal-title">Eintrag bearbeiten</h3>
+            <form id="edit-form">
+                <div id="edit-fields" class="space-y-4"></div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()" class="btn-secondary py-2 px-4 rounded-lg">Abbrechen</button>
+                    <button type="submit" class="btn-primary py-2 px-4 rounded-lg">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-wedding-app';
+        
+        let app, auth, db, userId;
+        let isAuthReady = false;
+
+        let totalBudget = 0;
+        let expenses = { paid: 0, open: 0, total: 0 };
+        let guestStatusCounts = { total: 0, accepted: 0, declined: 0, notes: 0, planned: 0, invited: 0 };
+        let guestEventCounts = { civil: 0, reception: 0, both: 0 };
+        let guestMenuChoices = {};
+        let allExpensesDocs = [];
+        let allProvidersDocs = [];
+        let overdueTodos = [];
+        let countdownInterval;
+        let guestStatusChart = null;
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        loadAllData();
+                    } else {
+                        try {
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Authentication error:", error);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+            }
+        }
+        
+        window.showTab = (tabName) => {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
+        };
+
+        function getCollectionRef(collectionName) {
+            if (!isAuthReady) throw new Error("Authentication not ready.");
+            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
+        }
+
+        function getDocRef(collectionName, docId) {
+             if (!isAuthReady) throw new Error("Authentication not ready.");
+             return doc(db, `artifacts/${appId}/users/${userId}/${collectionName}`, docId);
+        }
+
+        function renderItems(collectionName, containerId, renderFunction, sortFn) {
+            if (!isAuthReady) return;
+            const container = document.getElementById(containerId);
+            if (!container) return; // Defensive check
+            onSnapshot(query(getCollectionRef(collectionName)), (snapshot) => {
+                container.innerHTML = '';
+                let docs = snapshot.docs;
+                if(sortFn) {
+                    docs = docs.sort(sortFn);
+                }
+                docs.forEach((doc) => container.appendChild(renderFunction(doc.id, doc.data())));
+            }, (error) => console.error(`Error fetching ${collectionName}:`, error));
+        }
+
+        async function handleAddItem(formId, collectionName, dataExtractor) {
+            const form = document.getElementById(formId);
+            if (!form) return; // Defensive check
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!isAuthReady) return;
+                const data = dataExtractor(form);
+                if (data) {
+                    try {
+                        await addDoc(getCollectionRef(collectionName), data);
+                        form.reset();
+                        if(formId === 'expense-form') {
+                            updateExpenseFormUI(); // Reset form UI
+                        }
+                    } catch (error) {
+                        console.error(`Error adding to ${collectionName}:`, error);
+                    }
+                }
+            });
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
+        }
+        
+        function calculateAllFinancials() {
+            let total = 0, paid = 0, open = 0;
+
+            // Process dedicated expenses
+            allExpensesDocs.forEach(expenseData => {
+                let cost = 0;
+                if (expenseData.type === 'dynamic') {
+                    let guestCount = 0;
+                    if (expenseData.appliesTo === 'civil') guestCount = guestEventCounts.civil + guestEventCounts.both;
+                    else if (expenseData.appliesTo === 'reception') guestCount = guestEventCounts.reception + guestEventCounts.both;
+                    else guestCount = guestEventCounts.civil + guestEventCounts.reception + guestEventCounts.both;
+                    cost = (expenseData.costPerGuest || 0) * guestCount;
+                } else {
+                    cost = expenseData.cost || 0;
+                }
+                total += cost;
+                if (expenseData.status === 'Bezahlt') paid += cost;
+                else open += cost;
+            });
+
+            // Process commissioned providers
+            allProvidersDocs.forEach(providerData => {
+                if (providerData.status === 'Beauftragt') {
+                    const cost = providerData.agreedPrice || 0;
+                    total += cost;
+                    if (providerData.paymentStatus === 'Bezahlt') {
+                        paid += cost;
+                    } else { // 'Offen' or 'Angezahlt'
+                        open += cost;
+                    }
+                }
+            });
+            
+            expenses = { paid, open, total };
+            updateAllViews();
+        }
+
+        function updateAllViews() {
+            const remainingBudget = totalBudget - expenses.total;
+            
+            // Dashboard View
+            document.getElementById('dashboard-budget-total').textContent = formatCurrency(totalBudget);
+            document.getElementById('dashboard-expenses-paid').textContent = formatCurrency(expenses.paid);
+            document.getElementById('dashboard-expenses-open').textContent = formatCurrency(expenses.open);
+            document.getElementById('dashboard-budget-remaining').textContent = formatCurrency(remainingBudget);
+            
+            document.getElementById('venn-civil-only').textContent = guestEventCounts.civil;
+            document.getElementById('venn-reception-only').textContent = guestEventCounts.reception;
+            document.getElementById('venn-both').textContent = guestEventCounts.both;
+
+            // Finances Tab View
+            document.getElementById('finances-budget-total').textContent = formatCurrency(totalBudget);
+            document.getElementById('finances-expenses-total').textContent = formatCurrency(expenses.total);
+            document.getElementById('finances-expenses-paid').textContent = formatCurrency(expenses.paid);
+            document.getElementById('finances-expenses-open').textContent = formatCurrency(expenses.open);
+            document.getElementById('finances-budget-remaining').textContent = formatCurrency(remainingBudget);
+            
+            // Guest Status Chart
+            const ctx = document.getElementById('guest-status-chart');
+            if (ctx) {
+                if (guestStatusChart) {
+                    guestStatusChart.destroy();
+                }
+                guestStatusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Geplant', 'Eingeladen', 'Zugesagt', 'Abgesagt'],
+                        datasets: [{
+                            label: 'Gästestatus',
+                            data: [
+                                guestStatusCounts.planned,
+                                guestStatusCounts.invited,
+                                guestStatusCounts.accepted,
+                                guestStatusCounts.declined
+                            ],
+                            backgroundColor: [
+                                '#4A5568', // Gray
+                                '#F59E0B', // Yellow
+                                '#10B981', // Green
+                                '#EF4444'  // Red
+                            ],
+                            borderColor: '#2d3748',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: '#e2e8f0'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Overdue Todos Dashboard
+            const overdueContainer = document.getElementById('overdue-todos-dashboard');
+            overdueContainer.innerHTML = '';
+            if (overdueTodos.length === 0) {
+                overdueContainer.innerHTML = `<p class="text-gray-400">Keine fälligen Aufgaben. Gut gemacht!</p>`;
+            } else {
+                overdueTodos.forEach(todo => {
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center p-2 rounded-md bg-red-50 border border-red-200';
+                    item.innerHTML = `
+                        <span class="font-medium text-red-800">${todo.task}</span>
+                        <span class="text-sm text-red-600">Fällig: ${new Date(todo.dueDate).toLocaleDateString('de-DE')}</span>
+                    `;
+                    overdueContainer.appendChild(item);
+                });
+            }
+        }
+
+        function setupRealtimeListeners() {
+            onSnapshot(getDocRef('config', 'budget'), (doc) => {
+                totalBudget = doc.exists() ? doc.data().total : 0;
+                calculateAllFinancials();
+            });
+
+            onSnapshot(query(getCollectionRef('expenses')), (snapshot) => {
+                allExpensesDocs = snapshot.docs.map(doc => doc.data());
+                calculateAllFinancials();
+            });
+            
+            onSnapshot(query(getCollectionRef('providers')), (snapshot) => {
+                allProvidersDocs = snapshot.docs.map(doc => doc.data());
+                calculateAllFinancials();
+            });
+
+            onSnapshot(query(getCollectionRef('guests')), (snapshot) => {
+                let accepted = 0, declined = 0, notes = 0, planned = 0, invited = 0;
+                let civil = 0, reception = 0, both = 0;
+                
+                snapshot.forEach(doc => {
+                    const guest = doc.data();
+                    if (guest.notes && guest.notes.trim() !== '') {
+                        notes++;
+                    }
+                    
+                    switch(guest.status) {
+                        case 'Geplante Einladung': planned++; break;
+                        case 'Eingeladen': invited++; break;
+                        case 'Abgesagt': declined++; break;
+                        case 'Zugesagt':
+                            accepted++;
+                            if (guest.attendsCivil && !guest.attendsReception) civil++;
+                            else if (!guest.attendsCivil && guest.attendsReception) reception++;
+                            else if (guest.attendsCivil && guest.attendsReception) both++;
+                            break;
+                    }
+                });
+                guestStatusCounts = { total: snapshot.size, accepted, declined, notes, planned, invited };
+                guestEventCounts = { civil, reception, both };
+                calculateAllFinancials();
+            });
+
+            onSnapshot(query(getCollectionRef('todos')), (snapshot) => {
+                overdueTodos = [];
+                const today = new Date();
+                today.setHours(0,0,0,0); // Set to beginning of today for accurate comparison
+
+                snapshot.forEach(doc => {
+                    const todo = doc.data();
+                    if (todo.dueDate && new Date(todo.dueDate) < today && todo.status !== 'Erledigt') {
+                        overdueTodos.push(todo);
+                    }
+                });
+                updateAllViews();
+            });
+        }
+        
+        window.updateDashboardImage = async () => {
+            const input = document.getElementById('image-upload-input');
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64String = e.target.result;
+                document.getElementById('dashboard-image').src = base64String;
+                if (!isAuthReady) return;
+                try {
+                    // Be cautious with large images due to Firestore document size limits (1MB)
+                    await setDoc(getDocRef('config', 'dashboardImage'), { base64: base64String });
+                } catch (error) {
+                    console.error("Error saving image:", error);
+                    alert("Fehler beim Speichern des Bildes. Die Datei ist möglicherweise zu groß.");
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+
+        async function setupDashboardImage() {
+            const imageDocRef = getDocRef('config', 'dashboardImage');
+            onSnapshot(imageDocRef, (doc) => {
+                if (doc.exists() && doc.data().base64) {
+                    document.getElementById('dashboard-image').src = doc.data().base64;
+                }
+            });
+             document.getElementById('image-upload-input').addEventListener('change', window.updateDashboardImage);
+        }
+        
+        function updateExpenseFormUI() {
+            const type = document.querySelector('input[name="expense-type"]:checked').value;
+            const costFieldsContainer = document.getElementById('expense-cost-fields');
+            const dynamicOptions = document.getElementById('expense-dynamic-options');
+
+            if (type === 'dynamic') {
+                costFieldsContainer.innerHTML = `<input type="number" id="expense-cost-per-guest" placeholder="Kosten pro Gast in EUR" class="p-2 rounded-md border w-full" required>`;
+                dynamicOptions.classList.remove('hidden');
+            } else {
+                costFieldsContainer.innerHTML = `<input type="number" id="expense-cost" placeholder="Kosten in EUR" class="p-2 rounded-md border w-full" required>`;
+                dynamicOptions.classList.add('hidden');
+            }
+        }
+
+        async function setupFinanceTab() {
+            const budgetForm = document.getElementById('budget-form');
+            const budgetInput = document.getElementById('total-budget');
+            const budgetDocRef = getDocRef('config', 'budget');
+            
+            onSnapshot(budgetDocRef, (doc) => {
+                if(doc.exists()) budgetInput.value = doc.data().total || '';
+            });
+
+            budgetForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!isAuthReady) return;
+                await setDoc(budgetDocRef, { total: Number(budgetInput.value) });
+            });
+            
+            document.querySelectorAll('input[name="expense-type"]').forEach(radio => {
+                radio.addEventListener('change', updateExpenseFormUI);
+            });
+            updateExpenseFormUI(); // Initial call
+        }
+        
+        function renderGuest(id, data) {
+            const card = document.createElement('div');
+            card.className = 'card p-4 flex flex-col justify-between';
+            let eventInfo = '';
+            if (data.attendsCivil && data.attendsReception) eventInfo = 'Standesamt & Feier';
+            else if (data.attendsCivil) eventInfo = 'Standesamt';
+            else if (data.attendsReception) eventInfo = 'Feier';
+
+            card.innerHTML = `
+                <div>
+                    <h3 class="font-bold text-lg">${data.name}</h3>
+                    <p class="text-sm text-gray-400">${data.relationship || ''}</p>
+                    <div class="mt-2 space-y-1 text-sm text-gray-300">
+                        <p>Status: ${data.status}</p>
+                        <p>Eingeladen zu: ${eventInfo}</p>
+                        ${data.notes ? `<p>Notizen: <span class="font-medium text-gray-100">${data.notes}</span></p>`: ''}
+                    </div>
+                </div>
+                <div class="flex space-x-2 mt-4">
+                    <button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button>
+                    <button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button>
+                </div>`;
+            card.querySelector('.btn-secondary').onclick = () => openEditModal('guests', id, data);
+            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('guests', id));
+            return card;
+        }
+
+        function renderExpense(id, data) {
+            const card = document.createElement('div');
+            card.className = 'card p-4';
+            const statusClass = data.status === 'Bezahlt' ? 'status-paid' : 'status-open';
+            
+            let costHtml;
+            if (data.type === 'dynamic') {
+                let guestCount = 0;
+                let guestType = '';
+                if (data.appliesTo === 'civil') {
+                    guestCount = guestEventCounts.civil + guestEventCounts.both;
+                    guestType = 'Standesamt Gäste';
+                } else if (data.appliesTo === 'reception') {
+                    guestCount = guestEventCounts.reception + guestEventCounts.both;
+                    guestType = 'Feier Gäste';
+                } else { // both
+                    guestCount = guestEventCounts.civil + guestEventCounts.reception + guestEventCounts.both;
+                    guestType = 'Gäste (alle)';
+                }
+                const totalDynamicCost = (data.costPerGuest || 0) * guestCount;
+                costHtml = `
+                    <p class="text-xl text-red-400 font-semibold">${formatCurrency(totalDynamicCost)}</p>
+                    <p class="text-xs text-gray-400">${formatCurrency(data.costPerGuest)} &times; ${guestCount} ${guestType}</p>
+                `;
+            } else {
+                 costHtml = `<p class="text-xl text-red-400 font-semibold">${formatCurrency(data.cost)}</p>`;
+            }
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-bold text-lg">${data.item}</h3>
+                        ${costHtml}
+                    </div>
+                    <span class="status-badge ${statusClass}">${data.status}</span>
+                </div>
+                <div class="text-sm text-gray-400 mt-2 space-y-1">
+                    ${data.dueDate ? `<div>Fällig: <span>${new Date(data.dueDate).toLocaleDateString('de-DE')}</span></div>` : ''}
+                    ${data.payer ? `<div>Zahler: <span>${data.payer}</span></div>` : ''}
+                </div>
+                <div class="flex space-x-2 mt-4">
+                    <button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button>
+                    <button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button>
+                </div>
+            `;
+            card.querySelector('.btn-secondary').onclick = () => openEditModal('expenses', id, data);
+            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('expenses', id));
+            return card;
+        }
+        
+        function renderTodoItem(id, data) {
+            const card = document.createElement('div');
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const isOverdue = data.dueDate && new Date(data.dueDate) < today && data.status !== 'Erledigt';
+            card.className = `card p-4 ${isOverdue ? 'overdue' : ''}`;
+            
+            let priorityClass = '';
+            switch(data.priority) {
+                case 'Hoch': priorityClass = 'priority-hoch'; break;
+                case 'Mittel': priorityClass = 'priority-mittel'; break;
+                default: priorityClass = 'priority-niedrig';
+            }
+             let statusClass = '';
+            switch(data.status) {
+                case 'Erledigt': statusClass = 'status-erledigt'; break;
+                case 'In Bearbeitung': statusClass = 'status-in-bearbeitung'; break;
+                default: statusClass = 'status-open';
+            }
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start gap-2">
+                    <div>
+                        <h3 class="font-bold text-lg">${data.task}</h3>
+                        <p class="text-sm text-gray-400">${data.category} / ${data.responsibility}</p>
+                        ${data.dueDate ? `<p class="text-sm text-gray-400 mt-1">Fällig: ${new Date(data.dueDate).toLocaleDateString('de-DE')}</p>` : ''}
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <span class="priority-badge ${priorityClass}">${data.priority}</span>
+                        <span class="status-badge ${statusClass}">${data.status}</span>
+                    </div>
+                </div>
+                <div class="flex space-x-2 mt-4">
+                    <button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button>
+                    <button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button>
+                </div>
+            `;
+            card.querySelector('.btn-secondary').onclick = () => openEditModal('todos', id, data);
+            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('todos', id));
+            return card;
+        }
+
+        function renderProvider(id, data) {
+            const card = document.createElement('div');
+            card.className = 'card p-4';
+            const statusClass = {
+                'Beauftragt': 'status-beauftragt',
+                'Abgelehnt': 'status-abgelehnt',
+                'In Entscheidung': 'status-in-entscheidung'
+            }[data.status] || 'status-in-entscheidung';
+
+            const paymentStatusClass = {
+                'Bezahlt': 'status-paid',
+                'Angezahlt': 'status-angezahlt',
+                'Offen': 'status-open'
+            }[data.paymentStatus] || 'status-open';
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start gap-2">
+                    <div>
+                        <h3 class="font-bold text-lg">${data.name}</h3>
+                        <p class="text-sm text-gray-400">${data.category}</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2 text-xs">
+                        <span class="status-badge ${statusClass}">${data.status}</span>
+                        <span class="status-badge ${paymentStatusClass}">${data.paymentStatus}</span>
+                    </div>
+                </div>
+                <div class="mt-4 space-y-2 text-sm">
+                    <p><strong class="font-medium text-gray-300">Kontakt:</strong> ${data.contact || '-'} (${data.phone || 'N/A'}, ${data.email || 'N/A'})</p>
+                    <p><strong class="font-medium text-gray-300">Preis:</strong> ${formatCurrency(data.agreedPrice)}</p>
+                    <p><strong class="font-medium text-gray-300">Zahler:</strong> ${data.payer || '-'}</p>
+                    ${data.contractLink ? `<p><strong class="font-medium text-gray-300">Vertrag:</strong> <a href="${data.contractLink}" target="_blank" class="text-teal-400 hover:underline">Link öffnen</a></p>` : ''}
+                </div>
+                <div class="flex space-x-2 mt-4 border-t pt-3 border-gray-700">
+                    <button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button>
+                    <button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button>
+                </div>
+            `;
+            card.querySelector('.btn-secondary').onclick = () => openEditModal('providers', id, data);
+            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('providers', id));
+            return card;
+        }
+
+        function renderMoodboardItem(id, data) {
+            const card = document.createElement('div');
+            card.className = 'card overflow-hidden';
+            card.innerHTML = `<img src="${data.imageUrl}" alt="${data.description}" class="w-full h-48 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/600x400/fdf8f5/a07a65?text=Bild+nicht+gefunden';"><div class="p-4"><p class="text-sm">${data.description}</p><div class="flex space-x-2 mt-4"><button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button><button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button></div></div>`;
+            card.querySelector('.btn-secondary').onclick = () => openEditModal('moodboard', id, data);
+            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('moodboard', id));
+            return card;
+        }
+        
+        function renderHoneymoonPlan(id, data) {
+            const card = document.createElement('div');
+            card.className = 'card p-4 flex flex-col justify-between';
+            card.innerHTML = `<div><h3 class="font-bold text-lg">${data.destination}</h3><p class="text-sm text-gray-400 whitespace-pre-wrap">${data.plan}</p></div><div class="flex space-x-2 mt-4"><button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button><button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button></div>`;
+            card.querySelector('.btn-secondary').onclick = () => openEditModal('honeymoon', id, data);
+            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('honeymoon', id));
+            return card;
+        }
+        
+        function renderScheduleItem(id, data) {
+            const item = document.createElement('div');
+            item.className = 'card p-4';
+            item.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <p class="font-bold">${data.startTime} - ${data.endTime}</p>
+                </div>
+                <h4 class="font-semibold text-lg mt-1">${data.description}</h4>
+                <div class="mt-2 space-y-1 text-sm text-gray-400">
+                    ${data.location ? `<p><strong class="font-medium text-gray-200">Ort:</strong> ${data.location}</p>` : ''}
+                    ${data.people ? `<p><strong class="font-medium text-gray-200">Personen:</strong> ${data.people}</p>` : ''}
+                    ${data.provider ? `<p><strong class="font-medium text-gray-200">Dienstleister:</strong> ${data.provider}</p>` : ''}
+                    ${data.notes ? `<p class="mt-2 pt-2 border-t border-gray-700"><strong class="font-medium text-gray-200">Notiz:</strong> ${data.notes}</p>` : ''}
+                </div>
+                <div class="flex space-x-2 mt-4 border-t pt-3 border-gray-700">
+                    <button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button>
+                    <button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button>
+                </div>
+            `;
+            item.querySelector('.btn-secondary').onclick = () => openEditModal('schedule', id, data);
+            item.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('schedule', id));
+            return item;
+        }
+
+        function setupScheduleListeners() {
+            const civilList = document.getElementById('schedule-civil-list');
+            const receptionList = document.getElementById('schedule-reception-list');
+            const qCivil = query(getCollectionRef('schedule'), where('type', '==', 'civil'));
+            onSnapshot(qCivil, (snapshot) => {
+                civilList.innerHTML = '';
+                snapshot.docs.sort((a,b) => a.data().startTime.localeCompare(b.data().startTime))
+                    .forEach(doc => civilList.appendChild(renderScheduleItem(doc.id, doc.data())));
+            });
+            const qReception = query(getCollectionRef('schedule'), where('type', '==', 'reception'));
+            onSnapshot(qReception, (snapshot) => {
+                receptionList.innerHTML = '';
+                snapshot.docs.sort((a,b) => a.data().startTime.localeCompare(b.data().startTime))
+                    .forEach(doc => receptionList.appendChild(renderScheduleItem(doc.id, doc.data())));
+            });
+        }
+        
+        function setupCountdown() {
+            const dateInput = document.getElementById('wedding-date');
+            const dateDocRef = getDocRef('config', 'weddingDate');
+
+            const startTimer = (endDate) => {
+                if (countdownInterval) clearInterval(countdownInterval);
+
+                countdownInterval = setInterval(() => {
+                    const now = new Date().getTime();
+                    const distance = endDate - now;
+
+                    if (distance < 0) {
+                        clearInterval(countdownInterval);
+                        document.getElementById('countdown-timer').innerHTML = '<span class="text-2xl font-bold text-rose-500">Herzlichen Glückwunsch!</span>';
+                        return;
+                    }
+
+                    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    document.getElementById('days').textContent = String(days).padStart(2, '0');
+                    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+                    document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+                    document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+                }, 1000);
+            };
+
+            onSnapshot(dateDocRef, (doc) => {
+                if (doc.exists() && doc.data().date) {
+                    dateInput.value = doc.data().date;
+                    const targetDate = new Date(doc.data().date).getTime();
+                    startTimer(targetDate);
+                }
+            });
+
+            dateInput.addEventListener('change', async () => {
+                if (!isAuthReady) return;
+                const newDate = dateInput.value;
+                if (newDate) {
+                    await setDoc(dateDocRef, { date: newDate });
+                    const targetDate = new Date(newDate).getTime();
+                    startTimer(targetDate);
+                }
+            });
+        }
+
+        const modal = document.getElementById('edit-modal');
+        const editForm = document.getElementById('edit-form');
+        const modalTitle = document.getElementById('modal-title');
+        const editFieldsContainer = document.getElementById('edit-fields');
+        let currentEditContext = {};
+
+        function createModalField(key, value) {
+            const fieldWrapper = document.createElement('div');
+            let labelText = key.replace(/([A-Z])/g, ' $1');
+            let input;
+
+            if (key === 'attendsCivil' || key === 'attendsReception') {
+                const label = document.createElement('label');
+                label.className = "flex items-center gap-x-2";
+                labelText = key === 'attendsCivil' ? 'Standesamt' : 'Feier';
+                input = document.createElement('input');
+                input.type = 'checkbox'; input.name = key; input.checked = value;
+                input.className = "h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500";
+                label.appendChild(input);
+                label.append(labelText);
+                return label;
+            }
+            
+            const label = document.createElement('label');
+            label.className = "block text-sm font-medium capitalize";
+            
+            if (key === 'startTime') labelText = 'Startzeit';
+            else if (key === 'endTime') labelText = 'Endzeit';
+            else if (key === 'description') labelText = 'Beschreibung';
+            else if (key === 'item') labelText = 'Posten';
+            else if (key === 'cost' || key === 'costPerGuest' || key === 'agreedPrice') labelText = 'Preis';
+            else if (key === 'dueDate') labelText = 'Fällig bis';
+            else if (key === 'payer') labelText = 'Wer zahlt';
+            else if (key === 'task') labelText = 'Aufgabe';
+            else if (key === 'appliesTo') labelText = 'Anwenden auf';
+            else if (key === 'relationship') labelText = 'Beziehung';
+            else if (key === 'notes') labelText = 'Allergien/Alkohol Notizen';
+            else if (key === 'responsibility') labelText = 'Verantwortlichkeit';
+            else if (key === 'contact') labelText = 'Kontaktperson';
+            else if (key === 'contractLink') labelText = 'Vertrag (Link)';
+            else if (key === 'people') labelText = 'Beteiligte Personen';
+            else if (key === 'provider') labelText = 'Verantwortlicher Dienstleister';
+            
+            label.textContent = labelText;
+            fieldWrapper.appendChild(label);
+
+            if (key === 'status') {
+                input = document.createElement('select');
+                if (currentEditContext.collectionName === 'expenses') {
+                    input.innerHTML = `<option value="Offen">Offen</option><option value="Bezahlt">Bezahlt</option>`;
+                } else if (currentEditContext.collectionName === 'guests') {
+                    input.innerHTML = `<option>Geplante Einladung</option><option>Eingeladen</option><option>Zugesagt</option><option>Abgesagt</option>`;
+                } else if (currentEditContext.collectionName === 'providers') {
+                    input.innerHTML = `<option>In Entscheidung</option><option>Beauftragt</option><option>Abgelehnt</option>`;
+                } else { // todos
+                    input.innerHTML = `<option value="Offen">Offen</option><option value="In Bearbeitung">In Bearbeitung</option><option value="Erledigt">Erledigt</option>`;
+                }
+            } else if (key === 'paymentStatus') {
+                 input = document.createElement('select');
+                 input.innerHTML = `<option>Offen</option><option>Angezahlt</option><option>Bezahlt</option>`;
+            } else if (key === 'payer') {
+                 input = document.createElement('select');
+                 input.innerHTML = `<option>Brautpaar</option><option>Eltern der Braut</option><option>Eltern des Bräutigams</option>`;
+            } else if (key === 'priority') {
+                input = document.createElement('select');
+                input.innerHTML = `<option>Hoch</option><option>Mittel</option><option>Niedrig</option>`;
+            } else if (key === 'category') {
+                input = document.createElement('select');
+                input.innerHTML = `<option>Essen</option><option>Kleidung</option><option>Dienstleister</option><option>Unterhaltung</option><option>Papiere</option><option>Sonstiges</option>`;
+            } else if (key === 'responsibility') {
+                input = document.createElement('select');
+                input.innerHTML = `<option>Beide</option><option>Braut</option><option>Bräutigam</option><option>Trauzeug*in</option>`;
+            } else if (key === 'menu') {
+                input = document.createElement('select');
+                input.innerHTML = `
+                    <option value="Standard">Standard</option>
+                    <option value="Vegetarisch">Vegetarisch</option>
+                    <option value="Vegan">Vegan</option>
+                    <option value="Kindermenü">Kindermenü</option>
+                `;
+            } else if (key === 'relationship') {
+                input = document.createElement('select');
+                input.innerHTML = `
+                    <option value="Freund*in (Braut)">Freund*in (Braut)</option>
+                    <option value="Freund*in (Bräutigam)">Freund*in (Bräutigam)</option>
+                    <option value="Familie (Braut)">Familie (Braut)</option>
+                    <option value="Familie (Bräutigam)">Familie (Bräutigam)</option>
+                    <option value="Trauzeug*in (Braut)">Trauzeug*in (Braut)</option>
+                    <option value="Trauzeug*in (Bräutigam)">Trauzeug*in (Bräutigam)</option>
+                    <option value="Sonstige">Sonstige</option>
+                `;
+            } else if (key === 'appliesTo') {
+                input = document.createElement('select');
+                input.innerHTML = `<option value="reception">Nur Feier</option><option value="civil">Nur Standesamt</option><option value="both">Standesamt & Feier</option>`;
+            } else if (key === 'startTime' || key === 'endTime') {
+                input = document.createElement('input'); input.type = 'time';
+            } else if (key === 'dueDate') {
+                input = document.createElement('input'); input.type = 'date';
+            } else if (key === 'notes' || (typeof value === 'string' && value.length > 50)) {
+                input = document.createElement('textarea'); input.rows = 3;
+            } else {
+                input = document.createElement('input');
+                input.type = (typeof value === 'number' || key === 'phone') ? 'number' : (key === 'email' || key === 'contractLink' ? 'url' : 'text');
+            }
+            input.className = "mt-1 block w-full rounded-md border-gray-600 shadow-sm p-2";
+            input.name = key;
+            input.value = value;
+            fieldWrapper.appendChild(input);
+            return fieldWrapper;
+        }
+
+        function openEditModal(collectionName, docId, data) {
+            currentEditContext = { collectionName, docId, originalData: data };
+            modalTitle.textContent = `"${data.name || data.description || data.item || data.task || Object.values(data)[0]}" bearbeiten`;
+            editFieldsContainer.innerHTML = '';
+
+            const fieldOrder = ['name', 'category', 'contact', 'phone', 'email', 'agreedPrice', 'status', 'paymentStatus', 'payer', 'contractLink', 'relationship', 'menu', 'notes', 'attendsCivil', 'attendsReception', 'task', 'priority', 'responsibility', 'dueDate', 'item', 'cost', 'costPerGuest', 'appliesTo', 'startTime', 'endTime', 'description', 'location', 'people', 'provider'];
+            const sortedKeys = Object.keys(data).sort((a,b) => {
+                let aIndex = fieldOrder.indexOf(a);
+                let bIndex = fieldOrder.indexOf(b);
+                if (aIndex === -1) aIndex = 99;
+                if (bIndex === -1) bIndex = 99;
+                return aIndex - bIndex;
+            });
+            
+            for (const key of sortedKeys) {
+                if (key === 'type') continue;
+                editFieldsContainer.appendChild(createModalField(key, data[key]));
+            }
+            modal.classList.remove('hidden');
+        }
+
+        window.closeModal = () => modal.classList.add('hidden');
+
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(editForm);
+            const updatedData = { ...currentEditContext.originalData };
+
+            if (currentEditContext.originalData.hasOwnProperty('attendsCivil')) updatedData.attendsCivil = false;
+            if (currentEditContext.originalData.hasOwnProperty('attendsReception')) updatedData.attendsReception = false;
+
+            for (const [key, value] of formData.entries()) {
+                const originalType = typeof currentEditContext.originalData[key];
+                if (['cost', 'costPerGuest', 'agreedPrice'].includes(key)) {
+                    updatedData[key] = Number(value);
+                }
+                else if (originalType === 'boolean') updatedData[key] = true;
+                else updatedData[key] = value;
+            }
+            
+            await updateDoc(getDocRef(currentEditContext.collectionName, currentEditContext.docId), updatedData);
+            closeModal();
+        });
+
+        function loadAllData() {
+            if (!isAuthReady) return;
+            setupRealtimeListeners();
+            setupFinanceTab();
+            setupScheduleListeners();
+            setupDashboardImage();
+            setupCountdown();
+            
+            renderItems('guests', 'guests-list', renderGuest);
+            onSnapshot(query(getCollectionRef('expenses')), (snapshot) => {
+                const container = document.getElementById('expenses-list');
+                container.innerHTML = '';
+                snapshot.docs.sort((a,b) => (a.data().dueDate || '9999').localeCompare(b.data().dueDate || '9999'))
+                    .forEach(doc => container.appendChild(renderExpense(doc.id, doc.data())));
+            });
+            onSnapshot(query(getCollectionRef('todos')), (snapshot) => {
+                const container = document.getElementById('todos-list');
+                container.innerHTML = '';
+                const priorityOrder = { 'Hoch': 1, 'Mittel': 2, 'Niedrig': 3 };
+                snapshot.docs.sort((a, b) => {
+                    const prioA = priorityOrder[a.data().priority] || 99;
+                    const prioB = priorityOrder[b.data().priority] || 99;
+                    if (prioA !== prioB) return prioA - prioB;
+                    return (a.data().dueDate || '9999').localeCompare(b.data().dueDate || '9999');
+                }).forEach(doc => container.appendChild(renderTodoItem(doc.id, doc.data())));
+            });
+            renderItems('providers', 'providers-list', renderProvider);
+            renderItems('moodboard', 'moodboard-list', renderMoodboardItem);
+            renderItems('honeymoon', 'honeymoon-list', renderHoneymoonPlan);
+            
+            handleAddItem('guest-form', 'guests', form => ({ 
+                name: form['guest-name'].value, 
+                relationship: form['guest-relationship'].value,
+                notes: form['guest-notes'].value,
+                status: form['guest-status'].value, 
+                attendsCivil: form['guest-attends-civil'].checked, 
+                attendsReception: form['guest-attends-reception'].checked 
+            }));
+            handleAddItem('expense-form', 'expenses', form => {
+                const type = form.querySelector('input[name="expense-type"]:checked').value;
+                const data = {
+                    item: form['expense-item'].value,
+                    type: type,
+                    status: form['expense-status'].value, 
+                    dueDate: form['expense-due-date'].value, 
+                    payer: form['expense-payer'].value
+                };
+                if (type === 'dynamic') {
+                    data.costPerGuest = Number(form['expense-cost-per-guest'].value);
+                    data.appliesTo = form['expense-applies-to'].value;
+                } else {
+                    data.cost = Number(form['expense-cost'].value);
+                }
+                return data;
+            });
+            handleAddItem('todo-form', 'todos', form => ({ 
+                task: form['todo-task'].value, 
+                dueDate: form['todo-due-date'].value, 
+                status: form['todo-status'].value,
+                category: form['todo-category'].value,
+                priority: form['todo-priority'].value,
+                responsibility: form['todo-responsibility'].value
+            }));
+            handleAddItem('provider-form', 'providers', form => ({ 
+                name: form['provider-name'].value,
+                category: form['provider-category'].value,
+                contact: form['provider-contact'].value,
+                phone: form['provider-phone'].value,
+                email: form['provider-email'].value,
+                agreedPrice: Number(form['provider-price'].value) || 0,
+                status: form['provider-status'].value,
+                paymentStatus: form['provider-payment-status'].value,
+                payer: form['provider-payer'].value,
+                contractLink: form['provider-contract'].value
+            }));
+            handleAddItem('moodboard-form', 'moodboard', form => ({ imageUrl: form['moodboard-image'].value, description: form['moodboard-desc'].value }));
+            handleAddItem('honeymoon-form', 'honeymoon', form => ({ destination: form['honeymoon-dest'].value, plan: form['honeymoon-plan'].value }));
+            handleAddItem('schedule-civil-form', 'schedule', form => ({ 
+                startTime: form['schedule-civil-start'].value, 
+                endTime: form['schedule-civil-end'].value, 
+                description: form['schedule-civil-desc'].value, 
+                location: form['schedule-civil-location'].value,
+                people: form['schedule-civil-people'].value,
+                provider: form['schedule-civil-provider'].value,
+                notes: form['schedule-civil-notes'].value,
+                type: 'civil' 
+            }));
+            handleAddItem('schedule-reception-form', 'schedule', form => ({ 
+                startTime: form['schedule-reception-start'].value, 
+                endTime: form['schedule-reception-end'].value, 
+                description: form['schedule-reception-desc'].value, 
+                location: form['schedule-reception-location'].value,
+                people: form['schedule-reception-people'].value,
+                provider: form['schedule-reception-provider'].value,
+                notes: form['schedule-reception-notes'].value,
+                type: 'reception' 
+            }));
+        }
+        
+        initializeFirebase();
+        showTab('dashboard');
+    </script>
+</body>
+</html>
