@@ -100,6 +100,55 @@
             max-width: 500px;
             z-index: 50;
         }
+        .venn-container {
+            position: relative;
+            width: 220px;
+            height: 150px;
+            margin: 20px auto;
+        }
+        .venn-circle {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1a202c;
+            text-align: center;
+        }
+        .venn-circle-civil {
+            background-color: rgba(79, 209, 197, 0.7); /* Turquoise transparent */
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .venn-circle-reception {
+            background-color: rgba(44, 122, 123, 0.7); /* Dark Turquoise transparent */
+            top: 0;
+            left: 70px;
+            z-index: 1;
+        }
+        .venn-overlap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #e2e8f0;
+        }
+        .venn-label {
+             position: absolute;
+             bottom: -5px;
+             font-size: 0.8rem;
+             color: #a0aec0;
+             width: 100px;
+             text-align: center;
+        }
         .status-badge, .priority-badge {
             padding: 0.25rem 0.5rem;
             border-radius: 9999px;
@@ -206,6 +255,14 @@
                         <h3 class="text-xl font-serif mb-4">Gästestatus-Verteilung</h3>
                         <div class="max-w-xs mx-auto">
                             <canvas id="guest-status-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-xl font-serif mb-4 text-center">Gäste pro Ereignis</h3>
+                        <div class="venn-container">
+                            <div class="venn-circle venn-circle-civil"><span id="venn-civil-only">0</span><div class="venn-label" style="left: 25px;">Nur Standesamt</div></div>
+                            <div class="venn-circle venn-circle-reception"><span id="venn-reception-only">0</span><div class="venn-label" style="left: 95px;">Nur Feier</div></div>
+                            <div class="venn-overlap"><span id="venn-both">0</span></div>
                         </div>
                     </div>
                 </div>
@@ -534,66 +591,126 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // --- LOCAL STORAGE DATA HANDLING ---
+        const AppData = {
+            _db: {},
+            _subscribers: {},
 
-        const firebaseConfig = {
-			apiKey: "AIzaSyADtOUtr8nCF24kgYw5DsGJyb07Uu0Jq9c",
-			authDomain: "my-project-1692717419325.firebaseapp.com",
-			projectId: "my-project-1692717419325",
-			storageBucket: "my-project-1692717419325.firebasestorage.app",
-			messagingSenderId: "961155997056",
-			appId: "1:961155997056:web:5796460ec678e703267565"
+            // Get all items from a collection
+            get(collectionName) {
+                const collection = this._db[collectionName] || [];
+                return JSON.parse(JSON.stringify(collection));
+            },
+
+            // Get a single item by ID
+            getById(collectionName, id) {
+                const collection = this.get(collectionName);
+                return collection.find(item => item.id === id) || null;
+            },
+
+            // Add a new item to a collection
+            add(collectionName, data) {
+                if (!this._db[collectionName]) {
+                    this._db[collectionName] = [];
+                }
+                const newItem = { ...data, id: crypto.randomUUID() };
+                this._db[collectionName].push(newItem);
+                this._save();
+                this._notify(collectionName);
+            },
+
+            // Update an existing item
+            update(collectionName, id, updatedData) {
+                const collection = this.get(collectionName);
+                const itemIndex = collection.findIndex(item => item.id === id);
+                if (itemIndex !== -1) {
+                    this._db[collectionName][itemIndex] = { ...this._db[collectionName][itemIndex], ...updatedData };
+                    this._save();
+                    this._notify(collectionName);
+                }
+            },
+
+            // Delete an item
+            delete(collectionName, id) {
+                const collection = this.get(collectionName);
+                const itemIndex = collection.findIndex(item => item.id === id);
+                if (itemIndex !== -1) {
+                    this._db[collectionName].splice(itemIndex, 1);
+                    this._save();
+                    this._notify(collectionName);
+                }
+            },
+
+            // Subscribe to changes in a collection
+            onSnapshot(collectionName, callback) {
+                if (!this._subscribers[collectionName]) {
+                    this._subscribers[collectionName] = [];
+                }
+                this._subscribers[collectionName].push(callback);
+                // Immediately call with current data
+                callback(this.get(collectionName));
+            },
+
+            // Load data from LocalStorage
+            _load() {
+                const data = localStorage.getItem('weddingPlannerData');
+                if (data) {
+                    this._db = JSON.parse(data);
+                } else {
+                    // Initialize with empty collections
+                    this._db = {
+                        guests: [],
+                        todos: [],
+                        schedule: [],
+                        expenses: [],
+                        providers: [],
+                        moodboard: [],
+                        honeymoon: [],
+                        config: {}
+                    };
+                }
+            },
+
+            // Save data to LocalStorage
+            _save() {
+                localStorage.setItem('weddingPlannerData', JSON.stringify(this._db));
+            },
+            
+            // Notify subscribers of changes
+            _notify(collectionName) {
+                if (this._subscribers[collectionName]) {
+                    this._subscribers[collectionName].forEach(callback => callback(this.get(collectionName)));
+                }
+            },
+
+            // Get/Set config values (like budget, wedding date)
+            getConfig(key) {
+                return this._db.config ? this._db.config[key] : undefined;
+            },
+            
+            setConfig(key, value) {
+                if (!this._db.config) {
+                    this._db.config = {};
+                }
+                this._db.config[key] = value;
+                this._save();
+                this._notify('config');
+            }
         };
-        const appId = 'default-wedding-app';
-        
-        let app, auth, db, userId;
-        let isAuthReady = false;
 
+        // Initialize the local data store
+        AppData._load();
+
+        // --- GLOBAL STATE & UI ---
         let totalBudget = 0;
         let expenses = { paid: 0, open: 0, total: 0 };
         let guestStatusCounts = { total: 0, accepted: 0, declined: 0, notes: 0, planned: 0, invited: 0 };
         let guestEventCounts = { civil: 0, reception: 0, both: 0 };
-        let guestMenuChoices = {};
         let allExpensesDocs = [];
         let allProvidersDocs = [];
         let overdueTodos = [];
         let countdownInterval;
         let guestStatusChart = null;
-
-        async function initializeFirebase() {
-            if (!firebaseConfig || !firebaseConfig.apiKey) {
-                document.getElementById('app-container').innerHTML = `
-                    <div class="h-screen w-screen flex flex-col justify-center items-center p-8 -mt-20">
-                        <h1 class="text-3xl font-bold text-red-500 mb-4">Fehler: Firebase-Konfiguration fehlt!</h1>
-                        <p class="text-center mb-4 max-w-lg">Bitte fügen Sie Ihre Firebase-Konfigurationsdaten in die HTML-Datei ein. Sie müssen den Code-Block 'firebaseConfig' mit Ihren eigenen Schlüsseln aus Ihrem Firebase-Projekt ersetzen.</p>
-                        <p class="text-center text-sm text-gray-400">Sie finden diese Daten in Ihrer Firebase-Projektübersicht unter "Projekteinstellungen" > "Allgemein" > "Ihre Apps". Kopieren Sie das 'firebaseConfig'-Objekt.</p>
-                    </div>
-                `;
-                return;
-            }
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        isAuthReady = true;
-                        loadAllData();
-                    } else {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (error) {
-                            console.error("Authentication error:", error);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-            }
-        }
         
         window.showTab = (tabName) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -601,51 +718,6 @@
             document.getElementById(tabName).classList.add('active');
             document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
         };
-
-        function getCollectionRef(collectionName) {
-            if (!isAuthReady) throw new Error("Authentication not ready.");
-            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
-        }
-
-        function getDocRef(collectionName, docId) {
-             if (!isAuthReady) throw new Error("Authentication not ready.");
-             return doc(db, `artifacts/${appId}/users/${userId}/${collectionName}`, docId);
-        }
-
-        function renderItems(collectionName, containerId, renderFunction, sortFn) {
-            if (!isAuthReady) return;
-            const container = document.getElementById(containerId);
-            if (!container) return; // Defensive check
-            onSnapshot(query(getCollectionRef(collectionName)), (snapshot) => {
-                container.innerHTML = '';
-                let docs = snapshot.docs;
-                if(sortFn) {
-                    docs = docs.sort(sortFn);
-                }
-                docs.forEach((doc) => container.appendChild(renderFunction(doc.id, doc.data())));
-            }, (error) => console.error(`Error fetching ${collectionName}:`, error));
-        }
-
-        async function handleAddItem(formId, collectionName, dataExtractor) {
-            const form = document.getElementById(formId);
-            if (!form) return; // Defensive check
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!isAuthReady) return;
-                const data = dataExtractor(form);
-                if (data) {
-                    try {
-                        await addDoc(getCollectionRef(collectionName), data);
-                        form.reset();
-                        if(formId === 'expense-form') {
-                            updateExpenseFormUI(); // Reset form UI
-                        }
-                    } catch (error) {
-                        console.error(`Error adding to ${collectionName}:`, error);
-                    }
-                }
-            });
-        }
 
         function formatCurrency(value) {
             return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
@@ -769,27 +841,26 @@
         }
 
         function setupRealtimeListeners() {
-            onSnapshot(getDocRef('config', 'budget'), (doc) => {
-                totalBudget = doc.exists() ? doc.data().total : 0;
+            AppData.onSnapshot('config', () => {
+                totalBudget = AppData.getConfig('total') || 0;
                 calculateAllFinancials();
             });
 
-            onSnapshot(query(getCollectionRef('expenses')), (snapshot) => {
-                allExpensesDocs = snapshot.docs.map(doc => doc.data());
+            AppData.onSnapshot('expenses', (docs) => {
+                allExpensesDocs = docs;
                 calculateAllFinancials();
             });
             
-            onSnapshot(query(getCollectionRef('providers')), (snapshot) => {
-                allProvidersDocs = snapshot.docs.map(doc => doc.data());
+            AppData.onSnapshot('providers', (docs) => {
+                allProvidersDocs = docs;
                 calculateAllFinancials();
             });
 
-            onSnapshot(query(getCollectionRef('guests')), (snapshot) => {
+            AppData.onSnapshot('guests', (docs) => {
                 let accepted = 0, declined = 0, notes = 0, planned = 0, invited = 0;
                 let civil = 0, reception = 0, both = 0;
                 
-                snapshot.forEach(doc => {
-                    const guest = doc.data();
+                docs.forEach(guest => {
                     if (guest.notes && guest.notes.trim() !== '') {
                         notes++;
                     }
@@ -806,18 +877,17 @@
                             break;
                     }
                 });
-                guestStatusCounts = { total: snapshot.size, accepted, declined, notes, planned, invited };
+                guestStatusCounts = { total: docs.length, accepted, declined, notes, planned, invited };
                 guestEventCounts = { civil, reception, both };
                 calculateAllFinancials();
             });
 
-            onSnapshot(query(getCollectionRef('todos')), (snapshot) => {
+            AppData.onSnapshot('todos', (docs) => {
                 overdueTodos = [];
                 const today = new Date();
                 today.setHours(0,0,0,0); // Set to beginning of today for accurate comparison
 
-                snapshot.forEach(doc => {
-                    const todo = doc.data();
+                docs.forEach(todo => {
                     if (todo.dueDate && new Date(todo.dueDate) < today && todo.status !== 'Erledigt') {
                         overdueTodos.push(todo);
                     }
@@ -835,25 +905,16 @@
             reader.onload = async (e) => {
                 const base64String = e.target.result;
                 document.getElementById('dashboard-image').src = base64String;
-                if (!isAuthReady) return;
-                try {
-                    // Be cautious with large images due to Firestore document size limits (1MB)
-                    await setDoc(getDocRef('config', 'dashboardImage'), { base64: base64String });
-                } catch (error) {
-                    console.error("Error saving image:", error);
-                    alert("Fehler beim Speichern des Bildes. Die Datei ist möglicherweise zu groß.");
-                }
+                AppData.setConfig('dashboardImage', base64String);
             };
             reader.readAsDataURL(file);
         };
 
         async function setupDashboardImage() {
-            const imageDocRef = getDocRef('config', 'dashboardImage');
-            onSnapshot(imageDocRef, (doc) => {
-                if (doc.exists() && doc.data().base64) {
-                    document.getElementById('dashboard-image').src = doc.data().base64;
-                }
-            });
+            const base64String = AppData.getConfig('dashboardImage');
+            if (base64String) {
+                document.getElementById('dashboard-image').src = base64String;
+            }
              document.getElementById('image-upload-input').addEventListener('change', window.updateDashboardImage);
         }
         
@@ -874,16 +935,12 @@
         async function setupFinanceTab() {
             const budgetForm = document.getElementById('budget-form');
             const budgetInput = document.getElementById('total-budget');
-            const budgetDocRef = getDocRef('config', 'budget');
             
-            onSnapshot(budgetDocRef, (doc) => {
-                if(doc.exists()) budgetInput.value = doc.data().total || '';
-            });
+            budgetInput.value = AppData.getConfig('total') || '';
 
-            budgetForm.addEventListener('submit', async (e) => {
+            budgetForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                if (!isAuthReady) return;
-                await setDoc(budgetDocRef, { total: Number(budgetInput.value) });
+                AppData.setConfig('total', Number(budgetInput.value));
             });
             
             document.querySelectorAll('input[name="expense-type"]').forEach(radio => {
@@ -915,7 +972,7 @@
                     <button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button>
                 </div>`;
             card.querySelector('.btn-secondary').onclick = () => openEditModal('guests', id, data);
-            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('guests', id));
+            card.querySelector('.btn-danger').onclick = () => AppData.delete('guests', id);
             return card;
         }
 
@@ -965,7 +1022,7 @@
                 </div>
             `;
             card.querySelector('.btn-secondary').onclick = () => openEditModal('expenses', id, data);
-            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('expenses', id));
+            card.querySelector('.btn-danger').onclick = () => AppData.delete('expenses', id);
             return card;
         }
         
@@ -1007,7 +1064,7 @@
                 </div>
             `;
             card.querySelector('.btn-secondary').onclick = () => openEditModal('todos', id, data);
-            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('todos', id));
+            card.querySelector('.btn-danger').onclick = () => AppData.delete('todos', id);
             return card;
         }
 
@@ -1049,7 +1106,7 @@
                 </div>
             `;
             card.querySelector('.btn-secondary').onclick = () => openEditModal('providers', id, data);
-            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('providers', id));
+            card.querySelector('.btn-danger').onclick = () => AppData.delete('providers', id);
             return card;
         }
 
@@ -1058,7 +1115,7 @@
             card.className = 'card overflow-hidden';
             card.innerHTML = `<img src="${data.imageUrl}" alt="${data.description}" class="w-full h-48 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/600x400/fdf8f5/a07a65?text=Bild+nicht+gefunden';"><div class="p-4"><p class="text-sm">${data.description}</p><div class="flex space-x-2 mt-4"><button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button><button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button></div></div>`;
             card.querySelector('.btn-secondary').onclick = () => openEditModal('moodboard', id, data);
-            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('moodboard', id));
+            card.querySelector('.btn-danger').onclick = () => AppData.delete('moodboard', id);
             return card;
         }
         
@@ -1067,7 +1124,7 @@
             card.className = 'card p-4 flex flex-col justify-between';
             card.innerHTML = `<div><h3 class="font-bold text-lg">${data.destination}</h3><p class="text-sm text-gray-400 whitespace-pre-wrap">${data.plan}</p></div><div class="flex space-x-2 mt-4"><button class="btn-secondary text-xs py-1 px-2 rounded-md flex-grow">Bearbeiten</button><button class="btn-danger text-xs py-1 px-2 rounded-md flex-grow">Löschen</button></div>`;
             card.querySelector('.btn-secondary').onclick = () => openEditModal('honeymoon', id, data);
-            card.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('honeymoon', id));
+            card.querySelector('.btn-danger').onclick = () => AppData.delete('honeymoon', id);
             return card;
         }
         
@@ -1091,30 +1148,29 @@
                 </div>
             `;
             item.querySelector('.btn-secondary').onclick = () => openEditModal('schedule', id, data);
-            item.querySelector('.btn-danger').onclick = () => deleteDoc(getDocRef('schedule', id));
+            item.querySelector('.btn-danger').onclick = () => AppData.delete('schedule', id);
             return item;
         }
 
         function setupScheduleListeners() {
-            const civilList = document.getElementById('schedule-civil-list');
-            const receptionList = document.getElementById('schedule-reception-list');
-            const qCivil = query(getCollectionRef('schedule'), where('type', '==', 'civil'));
-            onSnapshot(qCivil, (snapshot) => {
+            AppData.onSnapshot('schedule', (docs) => {
+                const civilList = document.getElementById('schedule-civil-list');
+                const receptionList = document.getElementById('schedule-reception-list');
                 civilList.innerHTML = '';
-                snapshot.docs.sort((a,b) => a.data().startTime.localeCompare(b.data().startTime))
-                    .forEach(doc => civilList.appendChild(renderScheduleItem(doc.id, doc.data())));
-            });
-            const qReception = query(getCollectionRef('schedule'), where('type', '==', 'reception'));
-            onSnapshot(qReception, (snapshot) => {
                 receptionList.innerHTML = '';
-                snapshot.docs.sort((a,b) => a.data().startTime.localeCompare(b.data().startTime))
-                    .forEach(doc => receptionList.appendChild(renderScheduleItem(doc.id, doc.data())));
+                docs.sort((a,b) => a.startTime.localeCompare(b.startTime))
+                    .forEach(doc => {
+                        if (doc.type === 'civil') {
+                            civilList.appendChild(renderScheduleItem(doc.id, doc));
+                        } else {
+                            receptionList.appendChild(renderScheduleItem(doc.id, doc));
+                        }
+                    });
             });
         }
         
         function setupCountdown() {
             const dateInput = document.getElementById('wedding-date');
-            const dateDocRef = getDocRef('config', 'weddingDate');
 
             const startTimer = (endDate) => {
                 if (countdownInterval) clearInterval(countdownInterval);
@@ -1140,22 +1196,18 @@
                     document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
                 }, 1000);
             };
+            
+            const savedDate = AppData.getConfig('weddingDate');
+            if (savedDate) {
+                dateInput.value = savedDate;
+                startTimer(new Date(savedDate).getTime());
+            }
 
-            onSnapshot(dateDocRef, (doc) => {
-                if (doc.exists() && doc.data().date) {
-                    dateInput.value = doc.data().date;
-                    const targetDate = new Date(doc.data().date).getTime();
-                    startTimer(targetDate);
-                }
-            });
-
-            dateInput.addEventListener('change', async () => {
-                if (!isAuthReady) return;
+            dateInput.addEventListener('change', () => {
                 const newDate = dateInput.value;
                 if (newDate) {
-                    await setDoc(dateDocRef, { date: newDate });
-                    const targetDate = new Date(newDate).getTime();
-                    startTimer(targetDate);
+                    AppData.setConfig('weddingDate', newDate);
+                    startTimer(new Date(newDate).getTime());
                 }
             });
         }
@@ -1286,7 +1338,7 @@
             });
             
             for (const key of sortedKeys) {
-                if (key === 'type') continue;
+                if (key === 'type' || key === 'id') continue;
                 editFieldsContainer.appendChild(createModalField(key, data[key]));
             }
             modal.classList.remove('hidden');
@@ -1294,7 +1346,7 @@
 
         window.closeModal = () => modal.classList.add('hidden');
 
-        editForm.addEventListener('submit', async (e) => {
+        editForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const formData = new FormData(editForm);
             const updatedData = { ...currentEditContext.originalData };
@@ -1311,12 +1363,11 @@
                 else updatedData[key] = value;
             }
             
-            await updateDoc(getDocRef(currentEditContext.collectionName, currentEditContext.docId), updatedData);
+            AppData.update(currentEditContext.collectionName, currentEditContext.docId, updatedData);
             closeModal();
         });
 
         function loadAllData() {
-            if (!isAuthReady) return;
             setupRealtimeListeners();
             setupFinanceTab();
             setupScheduleListeners();
@@ -1324,22 +1375,22 @@
             setupCountdown();
             
             renderItems('guests', 'guests-list', renderGuest);
-            onSnapshot(query(getCollectionRef('expenses')), (snapshot) => {
+            AppData.onSnapshot('expenses', (docs) => {
                 const container = document.getElementById('expenses-list');
                 container.innerHTML = '';
-                snapshot.docs.sort((a,b) => (a.data().dueDate || '9999').localeCompare(b.data().dueDate || '9999'))
-                    .forEach(doc => container.appendChild(renderExpense(doc.id, doc.data())));
+                docs.sort((a,b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'))
+                    .forEach(doc => container.appendChild(renderExpense(doc.id, doc)));
             });
-            onSnapshot(query(getCollectionRef('todos')), (snapshot) => {
+            AppData.onSnapshot('todos', (docs) => {
                 const container = document.getElementById('todos-list');
                 container.innerHTML = '';
                 const priorityOrder = { 'Hoch': 1, 'Mittel': 2, 'Niedrig': 3 };
-                snapshot.docs.sort((a, b) => {
-                    const prioA = priorityOrder[a.data().priority] || 99;
-                    const prioB = priorityOrder[b.data().priority] || 99;
+                docs.sort((a, b) => {
+                    const prioA = priorityOrder[a.priority] || 99;
+                    const prioB = priorityOrder[b.priority] || 99;
                     if (prioA !== prioB) return prioA - prioB;
-                    return (a.data().dueDate || '9999').localeCompare(b.data().dueDate || '9999');
-                }).forEach(doc => container.appendChild(renderTodoItem(doc.id, doc.data())));
+                    return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+                }).forEach(doc => container.appendChild(renderTodoItem(doc.id, doc)));
             });
             renderItems('providers', 'providers-list', renderProvider);
             renderItems('moodboard', 'moodboard-list', renderMoodboardItem);
@@ -1414,8 +1465,10 @@
             }));
         }
         
-        initializeFirebase();
-        showTab('dashboard');
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebase();
+            showTab('dashboard');
+        });
     </script>
 </body>
 </html>
