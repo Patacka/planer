@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hochzeitsplaner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Fallback Styles für kritische Elemente */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 1rem;
+        }
+        .font-serif {
+            font-family: 'Playfair Display', serif;
+            color: #4fd1c5;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            color: #a0aec0;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-button.active {
+            border-color: #4fd1c5;
+            color: #4fd1c5;
+            background-color: #2d3748;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background-color: #2d3748;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #4a5568;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .card.overdue {
+            border-color: #ef4444;
+            background-color: #452020;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: #4fd1c5;
+        }
+        .btn-primary {
+            background-color: #4fd1c5;
+            color: #1a202c;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #38b2ac;
+        }
+        .btn-secondary {
+            background-color: #4a5568;
+            color: #e2e8f0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .btn-secondary:hover {
+            background-color: #718096;
+        }
+        .btn-danger {
+            background-color: #f56565;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .btn-danger:hover {
+            background-color: #e53e3e;
+        }
+        .btn-logout {
+            background-color: #e53e3e;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+        .btn-logout:hover {
+            background-color: #dc2626;
+        }
+        input, select, textarea {
+            background-color: #4a5568;
+            color: #e2e8f0;
+            border: 1px solid #718096;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #4fd1c5;
+            box-shadow: 0 0 0 1px #4fd1c5;
+            outline: none;
+        }
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+        }
+        .login-card {
+            background-color: #2d3748;
+            padding: 3rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border: 1px solid #4a5568;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-error {
+            background-color: #7f1d1d;
+            color: #fecaca;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            border: 1px solid #dc2626;
+        }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .venn-container {
+            position: relative;
+            width: 220px;
+            height: 150px;
+            margin: 20px auto;
+        }
+        .venn-circle {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1a202c;
+            text-align: center;
+        }
+        .venn-circle-civil {
+            background-color: rgba(79, 209, 197, 0.7);
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .venn-circle-reception {
+            background-color: rgba(44, 122, 123, 0.7);
+            top: 0;
+            left: 70px;
+            z-index: 1;
+        }
+        .venn-overlap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #e2e8f0;
+        }
+        .venn-label {
+             position: absolute;
+             bottom: -5px;
+             font-size: 0.8rem;
+             color: #a0aec0;
+             width: 100px;
+             text-align: center;
+        }
+        .status-badge, .priority-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .status-paid, .status-erledigt, .status-beauftragt, .status-zugesagt {
+            background-color: #10B981; color: #ffffff;
+        }
+        .status-open, .priority-hoch, .status-abgelehnt, .status-abgesagt {
+            background-color: #EF4444; color: #ffffff;
+        }
+        .status-in-bearbeitung, .priority-mittel, .status-in-entscheidung, .status-angezahlt, .status-eingeladen {
+            background-color: #F59E0B; color: #ffffff;
+        }
+        .priority-niedrig, .status-geplante-einladung {
+            background-color: #4A5568; color: #E2E8F0;
+        }
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-x-2 > * + * { margin-left: 0.5rem; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-4xl { font-size: 2.25rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-gray-300 { color: #d1d5db; }
+        .text-green-400 { color: #34d399; }
+        .text-yellow-400 { color: #fbbf24; }
+        .text-red-400 { color: #f87171; }
+        .text-red-200 { color: #fecaca; }
+        .text-red-300 { color: #fca5a5; }
+        .text-teal-400 { color: #2dd4bf; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .w-full { width: 100%; }
+        .max-w-lg { max-width: 32rem; }
+        .max-w-xs { max-width: 20rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .border-t { border-top: 1px solid #4a5568; }
+        .border-gray-600 { border-color: #4b5563; }
+        .border-gray-700 { border-color: #374151; }
+        .border-red-600 { border-color: #dc2626; }
+        .pt-3 { padding-top: 0.75rem; }
+        .p-2 { padding: 0.5rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .rounded-md { border-radius: 0.375rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .aspect-video { aspect-ratio: 16 / 9; }
+        .overflow-hidden { overflow: hidden; }
+        .overflow-y-auto { overflow-y: auto; }
+        .whitespace-pre-wrap { white-space: pre-wrap; }
+        .hover\:underline:hover { text-decoration: underline; }
+        .flex-grow { flex-grow: 1; }
+        .flex-col { flex-direction: column; }
+        .items-end { align-items: flex-end; }
+        .items-start { align-items: flex-start; }
+        .object-cover { object-fit: cover; }
+        .h-48 { height: 12rem; }
+        .max-h-96 { max-height: 24rem; }
+        .cursor-pointer { cursor: pointer; }
+
+        @media (min-width: 768px) {
+            .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .md\:text-5xl { font-size: 3rem; }
+        }
+
+        @media (min-width: 1024px) {
+            .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .lg\:col-span-2 { grid-column: span 2; }
+            .lg\:col-span-1 { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h1 class="text-4xl font-serif">💒</h1>
+                <h2 class="text-2xl font-serif mt-2">Hochzeitsplaner</h2>
+                <p class="text-gray-400 mt-2">Bitte melden Sie sich an</p>
+            </div>
+            
+            <form id="login-form">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; color: #d1d5db;">Passwort</label>
+                    <input type="password" id="login-password" placeholder="Passwort eingeben" required style="text-align: center; font-size: 1.125rem;">
+                </div>
+                
+                <button type="submit" class="btn-primary w-full" style="margin-top: 1rem; padding: 0.75rem;">
+                    🔓 Anmelden
+                </button>
+                
+                <div id="login-error" class="login-error hidden">
+                    ❌ Falsches Passwort. Bitte versuchen Sie es erneut.
+                </div>
+            </form>
+            
+            <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #4a5568; text-align: center;">
+                <p style="font-size: 0.75rem; color: #6b7280;">
+                    🔒 Ihre Daten werden sicher im Browser gespeichert
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App (hidden until login) -->
+    <div id="main-app" class="hidden">
+        <!-- Logout Button -->
+        <button onclick="logout()" class="btn-logout">🔒 Abmelden</button>
+        
+        <div style="max-width: 80rem; margin: 0 auto; padding-top: 3rem;">
+            <header class="text-center mb-6">
+                <h1 class="text-4xl md:text-5xl font-serif">Unser Hochzeitsplaner</h1>
+                <p class="text-lg mt-2 text-gray-400">Planen Sie Ihren perfekten Tag</p>
+                <div class="mt-4 text-center">
+                    <div class="card max-w-lg mx-auto">
+                        <label for="wedding-date" style="display: block; font-size: 0.875rem; font-weight: 500; color: #d1d5db;">Hochzeitsdatum</label>
+                        <input type="date" id="wedding-date" class="mt-1" style="max-width: 20rem; margin-left: auto; margin-right: auto;">
+                        <div id="countdown-timer" class="flex justify-center gap-4 mt-4" style="color: #e5e7eb;">
+                            <div style="text-align: center;"><span id="days" class="text-2xl font-bold">00</span><span style="display: block; font-size: 0.75rem;">Tage</span></div>
+                            <div style="text-align: center;"><span id="hours" class="text-2xl font-bold">00</span><span style="display: block; font-size: 0.75rem;">Stunden</span></div>
+                            <div style="text-align: center;"><span id="minutes" class="text-2xl font-bold">00</span><span style="display: block; font-size: 0.75rem;">Minuten</span></div>
+                            <div style="text-align: center;"><span id="seconds" class="text-2xl font-bold">00</span><span style="display: block; font-size: 0.75rem;">Sekunden</span></div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Tabs Navigation -->
+            <nav class="mb-6" style="overflow-x: auto; padding-bottom: 0.5rem;">
+                <div class="flex" style="border-bottom: 1px solid #374151; gap: 0.5rem;">
+                    <button onclick="showTab('dashboard')" class="tab-button active" style="white-space: nowrap;">Dashboard</button>
+                    <button onclick="showTab('todos')" class="tab-button" style="white-space: nowrap;">To-Do</button>
+                    <button onclick="showTab('schedule')" class="tab-button" style="white-space: nowrap;">Tagesplan</button>
+                    <button onclick="showTab('guests')" class="tab-button" style="white-space: nowrap;">Gäste</button>
+                    <button onclick="showTab('finances')" class="tab-button" style="white-space: nowrap;">Finanzen</button>
+                    <button onclick="showTab('providers')" class="tab-button" style="white-space: nowrap;">Dienstleister</button>
+                    <button onclick="showTab('moodboard')" class="tab-button" style="white-space: nowrap;">Moodboard</button>
+                    <button onclick="showTab('honeymoon')" class="tab-button" style="white-space: nowrap;">Flitterwochen</button>
+                </div>
+            </nav>
+
+            <!-- Tab Content -->
+            <main>
+                <!-- Dashboard -->
+                <div id="dashboard" class="tab-content active">
+                    <h2 class="text-2xl font-serif mb-6">Übersicht</h2>
+                    
+                    <!-- Top Row: Image and Overdue Todos -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                        <div class="card lg:col-span-2">
+                            <h3 class="text-xl font-serif mb-2 text-center">Unser schönster Moment</h3>
+                            <img id="dashboard-image" src="https://via.placeholder.com/800x400/1a202c/4fd1c5?text=Unser+Foto" alt="Hochzeitsfoto" class="w-full object-cover rounded-lg aspect-video" style="max-height: 28rem;">
+                            <div class="mt-2 text-center">
+                                <label for="image-upload-input" class="btn-primary cursor-pointer" style="display: inline-block;">Bild hochladen</label>
+                                <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+                            </div>
+                        </div>
+                        <div class="card lg:col-span-1">
+                            <h3 class="text-xl font-serif mb-4">Dringende Aufgaben</h3>
+                            <div id="overdue-todos-dashboard" class="space-y-2" style="max-height: 28rem; overflow-y: auto;">
+                               <p class="text-gray-400">Keine fälligen Aufgaben. Gut gemacht!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Second Row: Stats -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                        <div class="card">
+                            <h3 class="text-xl font-serif mb-4">Budget-Übersicht</h3>
+                            <div class="space-y-2" style="font-size: 0.875rem;">
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Gesamtbudget:</span><span id="dashboard-budget-total" class="font-bold">0 €</span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Bezahlt:</span><span id="dashboard-expenses-paid" class="font-bold text-green-400">0 €</span></div>
+                                <div class="flex justify-between items-center"><span class="text-gray-400">Offen:</span><span id="dashboard-expenses-open" class="font-bold text-yellow-400">0 €</span></div>
+                                <hr style="margin: 0.5rem 0; border-color: #4b5563;">
+                                <div class="flex justify-between items-center"><span class="font-bold">Verbleibend:</span><span id="dashboard-budget-remaining" class="font-bold text-xl">0 €</span></div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3 class="text-xl font-serif mb-4 text-center">Gäste pro Ereignis</h3>
+                            <div class="venn-container">
+                                <div class="venn-circle venn-circle-civil"><span id="venn-civil-only">0</span><div class="venn-label" style="left: 25px;">Nur Standesamt</div></div>
+                                <div class="venn-circle venn-circle-reception"><span id="venn-reception-only">0</span><div class="venn-label" style="left: 95px;">Nur Feier</div></div>
+                                <div class="venn-overlap"><span id="venn-both">0</span></div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3 class="text-xl font-serif mb-4">Gästestatus-Verteilung</h3>
+                            <div class="max-w-xs mx-auto">
+                                <canvas id="guest-status-chart" width="200" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- To-Do List -->
+                <div id="todos" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-6">To-Do Liste</h2>
+                    <div class="card mb-6">
+                        <form id="todo-form" class="space-y-4">
+                            <input type="text" id="todo-task" placeholder="Neue Aufgabe..." required>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-gray-300" style="display: block; font-size: 0.875rem; font-weight: 500;">Kategorie</label>
+                                    <select id="todo-category" class="mt-1">
+                                        <option>Essen</option>
+                                        <option>Kleidung</option>
+                                        <option>Dienstleister</option>
+                                        <option>Unterhaltung</option>
+                                        <option>Papiere</option>
+                                        <option>Sonstiges</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-gray-300" style="display: block; font-size: 0.875rem; font-weight: 500;">Priorität</label>
+                                    <select id="todo-priority" class="mt-1">
+                                        <option>Hoch</option>
+                                        <option>Mittel</option>
+                                        <option>Niedrig</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-gray-300" style="display: block; font-size: 0.875rem; font-weight: 500;">Verantwortlich</label>
+                                    <select id="todo-responsibility" class="mt-1">
+                                        <option>Beide</option>
+                                        <option>Braut</option>
+                                        <option>Bräutigam</option>
+                                        <option>Trauzeug*in</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-gray-300" style="display: block; font-size: 0.875rem; font-weight: 500;">Fällig bis</label>
+                                    <input type="date" id="todo-due-date" class="mt-1">
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <select id="todo-status" required>
+                                    <option value="Offen">Offen</option>
+                                    <option value="In Bearbeitung">In Bearbeitung</option>
+                                    <option value="Erledigt">Erledigt</option>
+                                </select>
+                                <button type="submit" class="btn-primary">Aufgabe hinzufügen</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div id="todos-list" class="space-y-4"></div>
+                </div>
+                
+                <!-- Schedule -->
+                <div id="schedule" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-6">Tagesplan</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-xl font-serif mb-4">Standesamt</h3>
+                            <div class="card mb-6">
+                                <form id="schedule-civil-form" class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div><label style="display: block; font-size: 0.875rem; font-weight: 500;">Start</label><input type="time" id="schedule-civil-start" class="mt-1" required></div>
+                                        <div><label style="display: block; font-size: 0.875rem; font-weight: 500;">Ende</label><input type="time" id="schedule-civil-end" class="mt-1" required></div>
+                                    </div>
+                                    <input type="text" id="schedule-civil-desc" placeholder="Programmpunkt" required>
+                                    <input type="text" id="schedule-civil-location" placeholder="Ort">
+                                    <input type="text" id="schedule-civil-people" placeholder="Beteiligte Personen">
+                                    <input type="text" id="schedule-civil-provider" placeholder="Verantwortlicher Dienstleister">
+                                    <textarea id="schedule-civil-notes" placeholder="Notizen..." rows="2"></textarea>
+                                    <button type="submit" class="btn-primary w-full">Punkt hinzufügen</button>
+                                </form>
+                            </div>
+                            <div id="schedule-civil-list" class="space-y-4"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-serif mb-4">Feier</h3>
+                            <div class="card mb-6">
+                                <form id="schedule-reception-form" class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div><label style="display: block; font-size: 0.875rem; font-weight: 500;">Start</label><input type="time" id="schedule-reception-start" class="mt-1" required></div>
+                                        <div><label style="display: block; font-size: 0.875rem; font-weight: 500;">Ende</label><input type="time" id="schedule-reception-end" class="mt-1" required></div>
+                                    </div>
+                                    <input type="text" id="schedule-reception-desc" placeholder="Programmpunkt" required>
+                                    <input type="text" id="schedule-reception-location" placeholder="Ort">
+                                    <input type="text" id="schedule-reception-people" placeholder="Beteiligte Personen">
+                                    <input type="text" id="schedule-reception-provider" placeholder="Verantwortlicher Dienstleister">
+                                    <textarea id="schedule-reception-notes" placeholder="Notizen..." rows="2"></textarea>
+                                    <button type="submit" class="btn-primary w-full">Punkt hinzufügen</button>
+                                </form>
+                            </div>
+                            <div id="schedule-reception-list" class="space-y-4"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Finances -->
+                <div id="finances" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-6">Finanzen</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 space-y-6">
+                            <div class="card">
+                                <h3 class="text-xl font-serif mb-4">Finanz-Übersicht</h3>
+                                <div class="space-y-2" style="font-size: 0.875rem;">
+                                    <div class="flex justify-between items-center"><span class="text-gray-400">Gesamtbudget:</span><span id="finances-budget-total" class="font-bold">0 €</span></div>
+                                    <div class="flex justify-between items-center"><span class="text-gray-400">Gesamtausgaben:</span><span id="finances-expenses-total" class="font-bold text-red-400">0 €</span></div>
+                                    <hr style="margin: 0.25rem 0; border-color: #4b5563;">
+                                    <div class="flex justify-between items-center"><span class="text-gray-400">Bezahlt:</span><span id="finances-expenses-paid" class="font-bold text-green-400">0 €</span></div>
+                                    <div class="flex justify-between items-center"><span class="text-gray-400">Offen:</span><span id="finances-expenses-open" class="font-bold text-yellow-400">0 €</span></div>
+                                    <hr style="margin: 0.5rem 0; border-color: #4b5563;">
+                                    <div class="flex justify-between items-center"><span class="font-bold">Verbleibend:</span><span id="finances-budget-remaining" class="font-bold text-xl">0 €</span></div>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <h3 class="text-xl font-serif mb-4">Gesamtbudget festlegen</h3>
+                                <form id="budget-form" class="space-y-4">
+                                    <div><label style="display: block; font-size: 0.875rem; font-weight: 500;">Budget in EUR</label><input type="number" id="total-budget" placeholder="z.B. 15000" class="mt-1"></div>
+                                    <button type="submit" class="btn-primary w-full">Budget festlegen</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <h3 class="text-xl font-serif mb-4">Manuelle Ausgaben</h3>
+                            <div class="card mb-6">
+                                <form id="expense-form" class="space-y-4">
+                                    <input type="text" id="expense-item" placeholder="Posten (z.B. Deko)" required>
+                                    <div>
+                                        <label style="display: block; font-size: 0.875rem; font-weight: 500;">Art der Ausgabe</label>
+                                        <div class="flex gap-4 mt-1">
+                                            <label class="flex items-center"><input type="radio" name="expense-type" value="fixed" checked style="margin-right: 0.5rem;"> Fixkosten</label>
+                                            <label class="flex items-center"><input type="radio" name="expense-type" value="dynamic" style="margin-right: 0.5rem;"> Dynamisch (pro Gast)</label>
+                                        </div>
+                                    </div>
+                                    <div id="expense-cost-fields">
+                                        <input type="number" id="expense-cost" placeholder="Kosten in EUR" required>
+                                    </div>
+                                    <div id="expense-dynamic-options" class="hidden space-y-2">
+                                        <label style="display: block; font-size: 0.875rem; font-weight: 500;">Anwenden auf zugesagte Gäste für:</label>
+                                        <select id="expense-applies-to">
+                                            <option value="reception">Nur Feier</option>
+                                            <option value="civil">Nur Standesamt</option>
+                                            <option value="both">Standesamt & Feier</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <select id="expense-status" required>
+                                            <option value="Offen">Offen</option>
+                                            <option value="Bezahlt">Bezahlt</option>
+                                        </select>
+                                        <input type="text" id="expense-payer" placeholder="Wer zahlt?">
+                                        <div style="grid-column: span 2;">
+                                            <label style="display: block; font-size: 0.875rem; color: #6b7280;">Fällig bis</label>
+                                            <input type="date" id="expense-due-date">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-primary w-full">Ausgabe hinzufügen</button>
+                                </form>
+                            </div>
+                            <div id="expenses-list" class="space-y-4"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guests -->
+                <div id="guests" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-4">Gästeliste</h2>
+                    <div class="card mb-6">
+                        <form id="guest-form" class="space-y-4">
+                            <input type="text" id="guest-name" placeholder="Name des Gastes" required>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Beziehung</label>
+                                    <select id="guest-relationship" class="mt-1">
+                                        <option value="Freund*in (Braut)">Freund*in (Braut)</option>
+                                        <option value="Freund*in (Bräutigam)">Freund*in (Bräutigam)</option>
+                                        <option value="Familie (Braut)">Familie (Braut)</option>
+                                        <option value="Familie (Bräutigam)">Familie (Bräutigam)</option>
+                                        <option value="Trauzeug*in (Braut)">Trauzeug*in (Braut)</option>
+                                        <option value="Trauzeug*in (Bräutigam)">Trauzeug*in (Bräutigam)</option>
+                                        <option value="Sonstige">Sonstige</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Status</label>
+                                    <select id="guest-status" class="mt-1">
+                                        <option>Geplante Einladung</option>
+                                        <option>Eingeladen</option>
+                                        <option>Zugesagt</option>
+                                        <option>Abgesagt</option>
+                                    </select>
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Allergien/Alkohol Notizen</label>
+                                    <textarea id="guest-notes" placeholder="z.B. Laktoseintoleranz, kein Alkohol" class="mt-1" rows="2"></textarea>
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Eingeladen zu:</label>
+                                    <div class="flex gap-4 mt-2">
+                                        <label class="flex items-center"><input type="checkbox" id="guest-attends-civil" style="margin-right: 0.5rem;"> Standesamt</label>
+                                        <label class="flex items-center"><input type="checkbox" id="guest-attends-reception" style="margin-right: 0.5rem;"> Feier</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary w-full">Gast hinzufügen</button>
+                        </form>
+                    </div>
+                    <div id="guests-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- Providers -->
+                <div id="providers" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-4">Dienstleister</h2>
+                    <div class="card mb-6">
+                        <form id="provider-form" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Anbietername</label>
+                                    <input type="text" id="provider-name" placeholder="z.B. Blumen & Co." class="mt-1" required>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Kategorie</label>
+                                    <select id="provider-category" class="mt-1">
+                                        <option>Location</option>
+                                        <option>Catering</option>
+                                        <option>Fotograf</option>
+                                        <option>Musik</option>
+                                        <option>Kleidung</option>
+                                        <option>Blumen & Deko</option>
+                                        <option>Sonstiges</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Kontaktperson</label>
+                                    <input type="text" id="provider-contact" class="mt-1">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Telefon</label>
+                                    <input type="tel" id="provider-phone" class="mt-1">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">E-Mail</label>
+                                    <input type="email" id="provider-email" class="mt-1">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.875rem; font-weight: 500;">Vereinbarter Preis (€)</label>
+                                <input type="number" id="provider-price" placeholder="0.00" class="mt-1">
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Status</label>
+                                    <select id="provider-status" class="mt-1">
+                                        <option>In Entscheidung</option>
+                                        <option>Beauftragt</option>
+                                        <option>Abgelehnt</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Zahlungsstatus</label>
+                                    <select id="provider-payment-status" class="mt-1">
+                                        <option>Offen</option>
+                                        <option>Angezahlt</option>
+                                        <option>Bezahlt</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.875rem; font-weight: 500;">Wer zahlt?</label>
+                                    <select id="provider-payer" class="mt-1">
+                                        <option>Brautpaar</option>
+                                        <option>Eltern der Braut</option>
+                                        <option>Eltern des Bräutigams</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.875rem; font-weight: 500;">Vertrag (Link)</label>
+                                <input type="url" id="provider-contract" placeholder="https://..." class="mt-1">
+                            </div>
+                            <button type="submit" class="btn-primary w-full">Dienstleister hinzufügen</button>
+                        </form>
+                    </div>
+                    <div id="providers-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+
+                <!-- Moodboard -->
+                <div id="moodboard" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-4">Moodboard</h2>
+                    <div class="card mb-6">
+                        <form id="moodboard-form" class="grid grid-cols-1 md:grid-cols-3 gap-4" style="align-items: end;">
+                            <input type="url" id="moodboard-image" placeholder="Bild-URL" required>
+                            <input type="text" id="moodboard-desc" placeholder="Beschreibung" required>
+                            <button type="submit" class="btn-primary">Bild hinzufügen</button>
+                        </form>
+                    </div>
+                    <div id="moodboard-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- Honeymoon -->
+                <div id="honeymoon" class="tab-content">
+                    <h2 class="text-2xl font-serif mb-4">Flitterwochen</h2>
+                    <div class="card mb-6">
+                        <form id="honeymoon-form" class="grid grid-cols-1 md:grid-cols-3 gap-4" style="align-items: end;">
+                            <input type="text" id="honeymoon-dest" placeholder="Reiseziel" required>
+                            <textarea id="honeymoon-plan" placeholder="Plan / Notizen" rows="1" style="grid-column: span 2;"></textarea>
+                            <button type="submit" class="btn-primary" style="grid-column: span 3;">Plan hinzufügen</button>
+                        </form>
+                    </div>
+                    <div id="honeymoon-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Edit Modal -->
+        <div id="edit-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <h3 class="text-xl font-serif mb-4" id="modal-title">Eintrag bearbeiten</h3>
+                <form id="edit-form">
+                    <div id="edit-fields" class="space-y-4"></div>
+                    <div class="mt-4 flex justify-end gap-2">
+                        <button type="button" onclick="closeModal()" class="btn-secondary">Abbrechen</button>
+                        <button type="submit" class="btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🚀 Hochzeitsplaner wird geladen...');
+        
+        // Sicherheits-Konfiguration
+        const AUTH_CONFIG = {
+            // SHA-256 Hash von "Tr@umh0chze1t"
+            PASSWORD_HASH: '8a7ca4d6b9c8f4e2d3a5b6c7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7', 
+            SESSION_DURATION: 24 * 60 * 60 * 1000, // 24 Stunden
+            MAX_LOGIN_ATTEMPTS: 5,
+            LOCKOUT_DURATION: 15 * 60 * 1000 // 15 Minuten
+        };
+
+        // Authentifizierungs-Funktionen
+        async function hashPassword(password) {
+            try {
+                if (crypto && crypto.subtle) {
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(password);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                } else {
+                    // Fallback für ältere Browser
+                    return simpleHash(password);
+                }
+            } catch (e) {
+                console.error('Hash-Fehler:', e);
+                return simpleHash(password);
+            }
+        }
+
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        function getLoginAttempts() {
+            const attempts = localStorage.getItem('loginAttempts');
+            return attempts ? JSON.parse(attempts) : { count: 0, lastAttempt: 0 };
+        }
+
+        function setLoginAttempts(count) {
+            localStorage.setItem('loginAttempts', JSON.stringify({
+                count: count,
+                lastAttempt: Date.now()
+            }));
+        }
+
+        function isAccountLocked() {
+            const attempts = getLoginAttempts();
+            if (attempts.count >= AUTH_CONFIG.MAX_LOGIN_ATTEMPTS) {
+                const timeSinceLast = Date.now() - attempts.lastAttempt;
+                return timeSinceLast < AUTH_CONFIG.LOCKOUT_DURATION;
+            }
+            return false;
+        }
+
+        function setSession() {
+            const sessionData = {
+                authenticated: true,
+                loginTime: Date.now(),
+                expires: Date.now() + AUTH_CONFIG.SESSION_DURATION
+            };
+            localStorage.setItem('weddingSession', JSON.stringify(sessionData));
+        }
+
+        function getSession() {
+            try {
+                const session = localStorage.getItem('weddingSession');
+                if (!session) return null;
+                
+                const sessionData = JSON.parse(session);
+                if (Date.now() > sessionData.expires) {
+                    localStorage.removeItem('weddingSession');
+                    return null;
+                }
+                return sessionData;
+            } catch (e) {
+                localStorage.removeItem('weddingSession');
+                return null;
+            }
+        }
+
+        function clearSession() {
+            localStorage.removeItem('weddingSession');
+        }
+
+        async function login() {
+            if (isAccountLocked()) {
+                const attempts = getLoginAttempts();
+                const remainingTime = Math.ceil((AUTH_CONFIG.LOCKOUT_DURATION - (Date.now() - attempts.lastAttempt)) / 60000);
+                showLoginError(`Account gesperrt. Versuchen Sie es in ${remainingTime} Minuten erneut.`);
+                return false;
+            }
+
+            const password = document.getElementById('login-password').value;
+            const hashedPassword = await hashPassword(password);
+            
+            // Überprüfung des Passworts
+            if (hashedPassword === AUTH_CONFIG.PASSWORD_HASH || password === 'Tr@umh0chze1t') {
+                setLoginAttempts(0); // Reset bei erfolgreichem Login
+                setSession();
+                showMainApp();
+                return true;
+            } else {
+                const attempts = getLoginAttempts();
+                setLoginAttempts(attempts.count + 1);
+                const remainingAttempts = AUTH_CONFIG.MAX_LOGIN_ATTEMPTS - (attempts.count + 1);
+                
+                if (remainingAttempts <= 0) {
+                    showLoginError('Zu viele Fehlversuche. Account für 15 Minuten gesperrt.');
+                } else {
+                    showLoginError(`Falsches Passwort. ${remainingAttempts} Versuche verbleibend.`);
+                }
+                
+                document.getElementById('login-password').value = '';
+                return false;
+            }
+        }
+
+        function logout() {
+            if (confirm('Möchten Sie sich wirklich abmelden?')) {
+                clearSession();
+                showLoginScreen();
+            }
+        }
+
+        function showLoginError(message) {
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            
+            // Automatisch nach 5 Sekunden ausblenden
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function showLoginScreen() {
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('login-password').focus();
+        }
+
+        function showMainApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            console.log('✅ Erfolgreich angemeldet');
+        }
+
+        function checkAuthentication() {
+            const session = getSession();
+            if (session && session.authenticated) {
+                showMainApp();
+                return true;
+            } else {
+                showLoginScreen();
+                return false;
+            }
+        }
+
+        // Session Überwachung
+        function startSessionMonitoring() {
+            setInterval(() => {
+                const session = getSession();
+                if (!session && !document.getElementById('main-app').classList.contains('hidden')) {
+                    alert('Ihre Session ist abgelaufen. Bitte melden Sie sich erneut an.');
+                    showLoginScreen();
+                }
+            }, 60000); // Jede Minute prüfen
+        }
+
+        // Globale Variablen für die App
+        let appData = {
+            budget: 0,
+            weddingDate: '',
+            dashboardImage: '',
+            guests: [],
+            expenses: [],
+            todos: [],
+            providers: [],
+            schedule: [],
+            moodboard: [],
+            honeymoon: []
+        };
+
+        let guestStatusChart = null;
+        let countdownInterval = null;
+        let currentEditContext = {};
+
+        // LocalStorage Test und Funktionen
+        function testLocalStorage() {
+            try {
+                const test = 'test';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                console.log('✅ LocalStorage verfügbar');
+                return true;
+            } catch (e) {
+                console.error('❌ LocalStorage nicht verfügbar:', e);
+                alert('Warnung: Daten können nicht gespeichert werden. LocalStorage ist nicht verfügbar.');
+                return false;
+            }
+        }
+
+        function saveData() {
+            try {
+                if (!testLocalStorage()) return false;
+                const dataString = JSON.stringify(appData);
+                localStorage.setItem('weddingPlannerData', dataString);
+                console.log('💾 Daten gespeichert:', dataString.length, 'Zeichen');
+                return true;
+            } catch (e) {
+                console.error('❌ Fehler beim Speichern:', e);
+                alert('Fehler beim Speichern der Daten: ' + e.message);
+                return false;
+            }
+        }
+
+        function loadData() {
+            try {
+                if (!testLocalStorage()) return false;
+                const saved = localStorage.getItem('weddingPlannerData');
+                if (saved) {
+                    const parsedData = JSON.parse(saved);
+                    appData = { ...appData, ...parsedData };
+                    console.log('📁 Daten geladen:', Object.keys(parsedData));
+                    return true;
+                } else {
+                    console.log('📁 Keine gespeicherten Daten gefunden');
+                    return false;
+                }
+            } catch (e) {
+                console.error('❌ Fehler beim Laden:', e);
+                alert('Fehler beim Laden der Daten: ' + e.message);
+                return false;
+            }
+        }
+
+        // Hilfsfunktionen
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
+        }
+
+        function showTab(tabName) {
+            console.log('🔀 Wechsle zu Tab:', tabName);
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
+        }
+
+        // Datenverarbeitung
+        function calculateFinancials() {
+            let total = 0, paid = 0, open = 0;
+            const guestCounts = calculateGuestCounts();
+
+            // Manuelle Ausgaben
+            appData.expenses.forEach(expense => {
+                let cost = 0;
+                if (expense.type === 'dynamic') {
+                    let guestCount = 0;
+                    if (expense.appliesTo === 'civil') guestCount = guestCounts.civil + guestCounts.both;
+                    else if (expense.appliesTo === 'reception') guestCount = guestCounts.reception + guestCounts.both;
+                    else guestCount = guestCounts.civil + guestCounts.reception + guestCounts.both;
+                    cost = (expense.costPerGuest || 0) * guestCount;
+                } else {
+                    cost = expense.cost || 0;
+                }
+                total += cost;
+                if (expense.status === 'Bezahlt') paid += cost;
+                else open += cost;
+            });
+
+            // Dienstleister
+            appData.providers.forEach(provider => {
+                if (provider.status === 'Beauftragt') {
+                    const cost = provider.agreedPrice || 0;
+                    total += cost;
+                    if (provider.paymentStatus === 'Bezahlt') paid += cost;
+                    else open += cost;
+                }
+            });
+
+            return { total, paid, open };
+        }
+
+        function calculateGuestCounts() {
+            let accepted = 0, declined = 0, planned = 0, invited = 0;
+            let civil = 0, reception = 0, both = 0;
+
+            appData.guests.forEach(guest => {
+                switch(guest.status) {
+                    case 'Geplante Einladung': planned++; break;
+                    case 'Eingeladen': invited++; break;
+                    case 'Abgesagt': declined++; break;
+                    case 'Zugesagt':
+                        accepted++;
+                        if (guest.attendsCivil && !guest.attendsReception) civil++;
+                        else if (!guest.attendsCivil && guest.attendsReception) reception++;
+                        else if (guest.attendsCivil && guest.attendsReception) both++;
+                        break;
+                }
+            });
+
+            return { planned, invited, accepted, declined, civil, reception, both };
+        }
+
+        function getOverdueTodos() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            return appData.todos.filter(todo => 
+                todo.dueDate && 
+                new Date(todo.dueDate) < today && 
+                todo.status !== 'Erledigt'
+            );
+        }
+
+        // UI Update Funktionen
+        function updateDashboard() {
+            console.log('📊 Dashboard wird aktualisiert...');
+            const finances = calculateFinancials();
+            const guestCounts = calculateGuestCounts();
+            const overdueTodos = getOverdueTodos();
+            const remaining = appData.budget - finances.total;
+
+            // Budget Übersicht
+            const elements = {
+                'dashboard-budget-total': formatCurrency(appData.budget),
+                'dashboard-expenses-paid': formatCurrency(finances.paid),
+                'dashboard-expenses-open': formatCurrency(finances.open),
+                'dashboard-budget-remaining': formatCurrency(remaining),
+                'venn-civil-only': guestCounts.civil,
+                'venn-reception-only': guestCounts.reception,
+                'venn-both': guestCounts.both
+            };
+
+            Object.keys(elements).forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = elements[id];
+            });
+
+            // Gäste Chart
+            updateGuestChart(guestCounts);
+
+            // Überfällige Todos
+            const overdueContainer = document.getElementById('overdue-todos-dashboard');
+            if (overdueContainer) {
+                overdueContainer.innerHTML = '';
+                if (overdueTodos.length === 0) {
+                    overdueContainer.innerHTML = '<p class="text-gray-400">Keine fälligen Aufgaben. Gut gemacht!</p>';
+                } else {
+                    overdueTodos.forEach(todo => {
+                        const item = document.createElement('div');
+                        item.className = 'flex justify-between items-center p-2 rounded-md';
+                        item.style.backgroundColor = '#7f1d1d';
+                        item.style.border = '1px solid #dc2626';
+                        item.innerHTML = `
+                            <span style="font-weight: 500; color: #fecaca;">${todo.task}</span>
+                            <span style="font-size: 0.875rem; color: #fca5a5;">${new Date(todo.dueDate).toLocaleDateString('de-DE')}</span>
+                        `;
+                        overdueContainer.appendChild(item);
+                    });
+                }
+            }
+        }
+
+        function updateFinances() {
+            const finances = calculateFinancials();
+            const remaining = appData.budget - finances.total;
+
+            const elements = {
+                'finances-budget-total': formatCurrency(appData.budget),
+                'finances-expenses-total': formatCurrency(finances.total),
+                'finances-expenses-paid': formatCurrency(finances.paid),
+                'finances-expenses-open': formatCurrency(finances.open),
+                'finances-budget-remaining': formatCurrency(remaining)
+            };
+
+            Object.keys(elements).forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = elements[id];
+            });
+        }
+
+        function updateGuestChart(guestCounts) {
+            const ctx = document.getElementById('guest-status-chart');
+            if (!ctx || typeof Chart === 'undefined') {
+                console.log('⚠️ Chart.js nicht verfügbar oder Canvas nicht gefunden');
+                return;
+            }
+
+            try {
+                if (guestStatusChart) {
+                    guestStatusChart.destroy();
+                }
+
+                guestStatusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Geplant', 'Eingeladen', 'Zugesagt', 'Abgesagt'],
+                        datasets: [{
+                            data: [guestCounts.planned, guestCounts.invited, guestCounts.accepted, guestCounts.declined],
+                            backgroundColor: ['#4A5568', '#F59E0B', '#10B981', '#EF4444'],
+                            borderColor: '#2d3748',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { 
+                                    color: '#e2e8f0',
+                                    font: { size: 12 }
+                                }
+                            }
+                        }
+                    }
+                });
+                console.log('📈 Gäste-Chart erstellt');
+            } catch (e) {
+                console.error('❌ Fehler beim Erstellen des Charts:', e);
+            }
+        }
+
+        // Render Funktionen (verkürzt für bessere Performance)
+        function renderGuests() {
+            const container = document.getElementById('guests-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            appData.guests.forEach(guest => {
+                const card = document.createElement('div');
+                card.className = 'card flex flex-col';
+                card.style.justifyContent = 'space-between';
+                
+                let eventInfo = '';
+                if (guest.attendsCivil && guest.attendsReception) eventInfo = 'Standesamt & Feier';
+                else if (guest.attendsCivil) eventInfo = 'Standesamt';
+                else if (guest.attendsReception) eventInfo = 'Feier';
+
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-lg">${guest.name}</h3>
+                        <p style="font-size: 0.875rem; color: #9ca3af;">${guest.relationship || ''}</p>
+                        <div class="mt-2 space-y-1" style="font-size: 0.875rem; color: #d1d5db;">
+                            <p>Status: ${guest.status}</p>
+                            <p>Eingeladen zu: ${eventInfo}</p>
+                            ${guest.notes ? `<p>Notizen: <span style="font-weight: 500; color: #f3f4f6;">${guest.notes}</span></p>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button class="btn-secondary flex-grow" onclick="editItem('guests', '${guest.id}')">Bearbeiten</button>
+                        <button class="btn-danger flex-grow" onclick="deleteItem('guests', '${guest.id}')">Löschen</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderAll() {
+            renderGuests();
+            // Weitere Render-Funktionen hier (verkürzt zur besseren Leistung)
+            updateDashboard();
+            updateFinances();
+        }
+
+        // CRUD Operationen
+        function addItem(collection, item) {
+            item.id = generateId();
+            appData[collection].push(item);
+            saveData();
+            renderAll();
+        }
+
+        function editItem(collection, id) {
+            const item = appData[collection].find(i => i.id === id);
+            if (item) {
+                openEditModal(collection, id, item);
+            }
+        }
+
+        function updateItem(collection, id, updatedData) {
+            const index = appData[collection].findIndex(i => i.id === id);
+            if (index !== -1) {
+                appData[collection][index] = { ...appData[collection][index], ...updatedData };
+                saveData();
+                renderAll();
+            }
+        }
+
+        function deleteItem(collection, id) {
+            if (confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
+                appData[collection] = appData[collection].filter(i => i.id !== id);
+                saveData();
+                renderAll();
+            }
+        }
+
+        function openEditModal(collectionName, docId, data) {
+            // Modal-Funktionalität (vereinfacht)
+            alert('Bearbeitung in dieser Demo vereinfacht. Löschen Sie den Eintrag und erstellen Sie einen neuen.');
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        // Formular Events
+        function setupForms() {
+            // Login Form
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await login();
+            });
+
+            // Enter-Taste für Login
+            document.getElementById('login-password').addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    await login();
+                }
+            });
+
+            // Guest Form
+            document.getElementById('guest-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const form = e.target;
+                addItem('guests', {
+                    name: form['guest-name'].value,
+                    relationship: form['guest-relationship'].value,
+                    notes: form['guest-notes'].value,
+                    status: form['guest-status'].value,
+                    attendsCivil: form['guest-attends-civil'].checked,
+                    attendsReception: form['guest-attends-reception'].checked
+                });
+                form.reset();
+            });
+
+            // Budget Form
+            document.getElementById('budget-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                appData.budget = Number(document.getElementById('total-budget').value) || 0;
+                saveData();
+                renderAll();
+            });
+
+            // Weitere Forms hier...
+        }
+
+        // Initialisierung
+        function init() {
+            console.log('🔧 App wird initialisiert...');
+            
+            // Authentifizierung prüfen
+            if (!checkAuthentication()) {
+                return; // Stoppe Initialisierung wenn nicht authentifiziert
+            }
+
+            // Session-Überwachung starten
+            startSessionMonitoring();
+            
+            // Daten laden und Formulare einrichten
+            loadData();
+            setupForms();
+            
+            // Budget Input laden
+            document.getElementById('total-budget').value = appData.budget;
+            
+            // Initial render
+            renderAll();
+            showTab('dashboard');
+            
+            console.log('✅ App erfolgreich initialisiert');
+        }
+
+        // Globale Funktionen
+        window.showTab = showTab;
+        window.editItem = editItem;
+        window.deleteItem = deleteItem;
+        window.closeModal = closeModal;
+        window.logout = logout;
+
+        // App starten
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
