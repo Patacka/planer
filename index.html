@@ -348,6 +348,9 @@
                 <p style="font-size: 0.75rem; color: #6b7280;">
                     🔒 Ihre Daten werden sicher im Browser gespeichert
                 </p>
+                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
+                    💡 Test-Passwort: <code style="background: #4a5568; padding: 0.25rem; border-radius: 0.25rem;">Tr@umh0chze1t</code>
+                </p>
             </div>
         </div>
     </div>
@@ -776,38 +779,25 @@
         
         // Sicherheits-Konfiguration
         const AUTH_CONFIG = {
-            // SHA-256 Hash von "Tr@umh0chze1t"
-            PASSWORD_HASH: '8a7ca4d6b9c8f4e2d3a5b6c7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7', 
             SESSION_DURATION: 24 * 60 * 60 * 1000, // 24 Stunden
             MAX_LOGIN_ATTEMPTS: 5,
             LOCKOUT_DURATION: 15 * 60 * 1000 // 15 Minuten
         };
 
         // Authentifizierungs-Funktionen
-        async function hashPassword(password) {
-            try {
-                if (crypto && crypto.subtle) {
-                    const encoder = new TextEncoder();
-                    const data = encoder.encode(password);
-                    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-                    const hashArray = Array.from(new Uint8Array(hashBuffer));
-                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                } else {
-                    // Fallback für ältere Browser
-                    return simpleHash(password);
-                }
-            } catch (e) {
-                console.error('Hash-Fehler:', e);
-                return simpleHash(password);
-            }
+        function validatePassword(inputPassword) {
+            // Direkter Vergleich mit dem korrekten Passwort
+            const correctPassword = 'Tr@umh0chze1t';
+            return inputPassword === correctPassword;
         }
 
-        function simpleHash(str) {
+        async function hashPassword(password) {
+            // Einfache Verschlüsselung für Session-Speicherung
             let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
+            for (let i = 0; i < password.length; i++) {
+                const char = password.charCodeAt(i);
                 hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32bit integer
+                hash = hash & hash;
             }
             return Math.abs(hash).toString(16);
         }
@@ -864,6 +854,8 @@
         }
 
         async function login() {
+            console.log('🔐 Login-Versuch gestartet...');
+            
             if (isAccountLocked()) {
                 const attempts = getLoginAttempts();
                 const remainingTime = Math.ceil((AUTH_CONFIG.LOCKOUT_DURATION - (Date.now() - attempts.lastAttempt)) / 60000);
@@ -872,15 +864,18 @@
             }
 
             const password = document.getElementById('login-password').value;
-            const hashedPassword = await hashPassword(password);
+            console.log('🔍 Passwort wird überprüft...');
             
-            // Überprüfung des Passworts
-            if (hashedPassword === AUTH_CONFIG.PASSWORD_HASH || password === 'Tr@umh0chze1t') {
+            // Direkter Passwort-Vergleich
+            if (validatePassword(password)) {
+                console.log('✅ Passwort korrekt!');
                 setLoginAttempts(0); // Reset bei erfolgreichem Login
                 setSession();
                 showMainApp();
+                document.getElementById('login-password').value = ''; // Passwort löschen
                 return true;
             } else {
+                console.log('❌ Passwort falsch!');
                 const attempts = getLoginAttempts();
                 setLoginAttempts(attempts.count + 1);
                 const remainingAttempts = AUTH_CONFIG.MAX_LOGIN_ATTEMPTS - (attempts.count + 1);
@@ -918,12 +913,17 @@
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('main-app').classList.add('hidden');
             document.getElementById('login-password').focus();
+            console.log('🔒 Login-Bildschirm angezeigt');
         }
 
         function showMainApp() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
-            console.log('✅ Erfolgreich angemeldet');
+            console.log('✅ Hauptanwendung geöffnet');
+            
+            // Daten laden und rendern nach erfolgreichem Login
+            loadData();
+            renderAll();
         }
 
         function checkAuthentication() {
@@ -1339,20 +1339,28 @@
         function init() {
             console.log('🔧 App wird initialisiert...');
             
+            // Formulare einrichten (vor Authentifizierung)
+            setupForms();
+            
             // Authentifizierung prüfen
-            if (!checkAuthentication()) {
+            const isAuthenticated = checkAuthentication();
+            console.log('🔐 Authentifizierung:', isAuthenticated ? 'OK' : 'Erforderlich');
+            
+            if (!isAuthenticated) {
                 return; // Stoppe Initialisierung wenn nicht authentifiziert
             }
 
             // Session-Überwachung starten
             startSessionMonitoring();
             
-            // Daten laden und Formulare einrichten
+            // Daten laden
             loadData();
-            setupForms();
             
             // Budget Input laden
-            document.getElementById('total-budget').value = appData.budget;
+            const budgetInput = document.getElementById('total-budget');
+            if (budgetInput) {
+                budgetInput.value = appData.budget;
+            }
             
             // Initial render
             renderAll();
