@@ -4,25 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hochzeitsplaner</title>
-    <script src="https://cdn.tailwindcss.com">
-	// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyADtOUtr8nCF24kgYw5DsGJyb07Uu0Jq9c",
-  authDomain: "my-project-1692717419325.firebaseapp.com",
-  projectId: "my-project-1692717419325",
-  storageBucket: "my-project-1692717419325.firebasestorage.app",
-  messagingSenderId: "961155997056",
-  appId: "1:961155997056:web:5796460ec678e703267565"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-	</script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -118,56 +100,6 @@ const app = initializeApp(firebaseConfig);
             max-width: 500px;
             z-index: 50;
         }
-        /* Venn Diagram Styles */
-        .venn-container {
-            position: relative;
-            width: 220px;
-            height: 150px;
-            margin: 20px auto;
-        }
-        .venn-circle {
-            position: absolute;
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #1a202c;
-            text-align: center;
-        }
-        .venn-circle-civil {
-            background-color: rgba(79, 209, 197, 0.7); /* Turquoise transparent */
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        .venn-circle-reception {
-            background-color: rgba(44, 122, 123, 0.7); /* Dark Turquoise transparent */
-            top: 0;
-            left: 70px;
-            z-index: 1;
-        }
-        .venn-overlap {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2;
-            font-size: 1.75rem;
-            font-weight: bold;
-            color: #e2e8f0;
-        }
-        .venn-label {
-             position: absolute;
-             bottom: -5px;
-             font-size: 0.8rem;
-             color: #a0aec0;
-             width: 100px;
-             text-align: center;
-        }
         .status-badge, .priority-badge {
             padding: 0.25rem 0.5rem;
             border-radius: 9999px;
@@ -202,7 +134,7 @@ const app = initializeApp(firebaseConfig);
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="max-w-7xl mx-auto">
+    <div id="app-container" class="max-w-7xl mx-auto">
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-serif">Unser Hochzeitsplaner</h1>
             <p class="text-lg mt-2 text-gray-400">Planen Sie Ihren perfekten Tag</p>
@@ -271,14 +203,6 @@ const app = initializeApp(firebaseConfig);
                         </div>
                     </div>
                     <div class="card p-6">
-                        <h3 class="text-xl font-serif mb-4 text-center">Gäste pro Ereignis</h3>
-                        <div class="venn-container">
-                            <div class="venn-circle venn-circle-civil"><span id="venn-civil-only">0</span><div class="venn-label" style="left: 25px;">Nur Standesamt</div></div>
-                            <div class="venn-circle venn-circle-reception"><span id="venn-reception-only">0</span><div class="venn-label" style="left: 95px;">Nur Feier</div></div>
-                            <div class="venn-overlap"><span id="venn-both">0</span></div>
-                        </div>
-                    </div>
-                     <div class="card p-6">
                         <h3 class="text-xl font-serif mb-4">Gästestatus-Verteilung</h3>
                         <div class="max-w-xs mx-auto">
                             <canvas id="guest-status-chart"></canvas>
@@ -614,8 +538,15 @@ const app = initializeApp(firebaseConfig);
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-wedding-app';
+        const firebaseConfig = {
+			apiKey: "AIzaSyADtOUtr8nCF24kgYw5DsGJyb07Uu0Jq9c",
+			authDomain: "my-project-1692717419325.firebaseapp.com",
+			projectId: "my-project-1692717419325",
+			storageBucket: "my-project-1692717419325.firebasestorage.app",
+			messagingSenderId: "961155997056",
+			appId: "1:961155997056:web:5796460ec678e703267565"
+        };
+        const appId = 'default-wedding-app';
         
         let app, auth, db, userId;
         let isAuthReady = false;
@@ -632,6 +563,16 @@ const app = initializeApp(firebaseConfig);
         let guestStatusChart = null;
 
         async function initializeFirebase() {
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
+                document.getElementById('app-container').innerHTML = `
+                    <div class="h-screen w-screen flex flex-col justify-center items-center p-8 -mt-20">
+                        <h1 class="text-3xl font-bold text-red-500 mb-4">Fehler: Firebase-Konfiguration fehlt!</h1>
+                        <p class="text-center mb-4 max-w-lg">Bitte fügen Sie Ihre Firebase-Konfigurationsdaten in die HTML-Datei ein. Sie müssen den Code-Block 'firebaseConfig' mit Ihren eigenen Schlüsseln aus Ihrem Firebase-Projekt ersetzen.</p>
+                        <p class="text-center text-sm text-gray-400">Sie finden diese Daten in Ihrer Firebase-Projektübersicht unter "Projekteinstellungen" > "Allgemein" > "Ihre Apps". Kopieren Sie das 'firebaseConfig'-Objekt.</p>
+                    </div>
+                `;
+                return;
+            }
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
@@ -643,11 +584,7 @@ const app = initializeApp(firebaseConfig);
                         loadAllData();
                     } else {
                         try {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
+                            await signInAnonymously(auth);
                         } catch (error) {
                             console.error("Authentication error:", error);
                         }
