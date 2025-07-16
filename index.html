@@ -348,9 +348,6 @@
                 <p style="font-size: 0.75rem; color: #6b7280;">
                     🔒 Ihre Daten werden sicher im Browser gespeichert
                 </p>
-                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
-                    💡 Test-Passwort: <code style="background: #4a5568; padding: 0.25rem; border-radius: 0.25rem;">Tr@umh0chze1t</code>
-                </p>
             </div>
         </div>
     </div>
@@ -402,7 +399,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                         <div class="card lg:col-span-2">
                             <h3 class="text-xl font-serif mb-2 text-center">Unser schönster Moment</h3>
-                            <img id="dashboard-image" src="https://via.placeholder.com/800x400/1a202c/4fd1c5?text=Unser+Foto" alt="Hochzeitsfoto" class="w-full object-cover rounded-lg aspect-video" style="max-height: 28rem;">
+                            <img id="dashboard-image" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%231a202c'/%3E%3Ctext x='400' y='200' font-family='Arial' font-size='24' fill='%234fd1c5' text-anchor='middle' dy='0.3em'%3EUnser Foto%3C/text%3E%3C/svg%3E" alt="Hochzeitsfoto" class="w-full object-cover rounded-lg aspect-video" style="max-height: 28rem;">
                             <div class="mt-2 text-center">
                                 <label for="image-upload-input" class="btn-primary cursor-pointer" style="display: inline-block;">Bild hochladen</label>
                                 <input type="file" id="image-upload-input" class="hidden" accept="image/*">
@@ -830,6 +827,21 @@
                 expires: Date.now() + AUTH_CONFIG.SESSION_DURATION
             };
             localStorage.setItem('weddingSession', JSON.stringify(sessionData));
+            console.log('🔐 Session erstellt, gültig bis:', new Date(sessionData.expires).toLocaleString());
+        }
+
+        function refreshSession() {
+            try {
+                const session = getSession();
+                if (session && session.authenticated) {
+                    // Session um weitere 24 Stunden verlängern
+                    session.expires = Date.now() + AUTH_CONFIG.SESSION_DURATION;
+                    localStorage.setItem('weddingSession', JSON.stringify(session));
+                    console.log('🔄 Session verlängert bis:', new Date(session.expires).toLocaleString());
+                }
+            } catch (error) {
+                console.error('❌ Fehler beim Verlängern der Session:', error);
+            }
         }
 
         function getSession() {
@@ -838,12 +850,17 @@
                 if (!session) return null;
                 
                 const sessionData = JSON.parse(session);
+                
+                // Prüfen ob Session noch gültig ist
                 if (Date.now() > sessionData.expires) {
+                    console.log('⏰ Session abgelaufen:', new Date(sessionData.expires).toLocaleString());
                     localStorage.removeItem('weddingSession');
                     return null;
                 }
+                
                 return sessionData;
             } catch (e) {
+                console.error('❌ Fehler beim Lesen der Session:', e);
                 localStorage.removeItem('weddingSession');
                 return null;
             }
@@ -871,6 +888,7 @@
                 console.log('✅ Passwort korrekt!');
                 setLoginAttempts(0); // Reset bei erfolgreichem Login
                 setSession();
+                startSessionMonitoring(); // Session-Überwachung starten
                 showMainApp();
                 document.getElementById('login-password').value = ''; // Passwort löschen
                 return true;
@@ -921,8 +939,21 @@
             document.getElementById('main-app').classList.remove('hidden');
             console.log('✅ Hauptanwendung geöffnet');
             
-            // Daten laden und rendern nach erfolgreichem Login
+            // Daten laden und Dashboard einrichten
             loadData();
+            setupCountdown();
+            setupDashboardImage();
+            
+            // Budget Input laden
+            const budgetInput = document.getElementById('total-budget');
+            if (budgetInput) {
+                budgetInput.value = appData.budget;
+            }
+            
+            // Expense Form UI einrichten
+            setupExpenseForm();
+            
+            // Alles rendern
             renderAll();
         }
 
@@ -937,15 +968,29 @@
             }
         }
 
-        // Session Überwachung
+        // Session Überwachung (weniger aggressiv)
         function startSessionMonitoring() {
             setInterval(() => {
-                const session = getSession();
-                if (!session && !document.getElementById('main-app').classList.contains('hidden')) {
-                    alert('Ihre Session ist abgelaufen. Bitte melden Sie sich erneut an.');
-                    showLoginScreen();
+                try {
+                    // Nur prüfen wenn Main App sichtbar ist
+                    const mainApp = document.getElementById('main-app');
+                    const loginScreen = document.getElementById('login-screen');
+                    
+                    if (!mainApp || !loginScreen) return;
+                    
+                    // Überspringen wenn Login-Screen bereits angezeigt wird
+                    if (!mainApp.classList.contains('hidden')) {
+                        const session = getSession();
+                        if (!session || !session.authenticated) {
+                            console.log('⚠️ Session abgelaufen - Umleitung zum Login');
+                            alert('Ihre Session ist abgelaufen. Bitte melden Sie sich erneut an.');
+                            showLoginScreen();
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Fehler in Session-Überwachung:', error);
                 }
-            }, 60000); // Jede Minute prüfen
+            }, 5 * 60 * 1000); // Nur alle 5 Minuten prüfen (weniger aggressiv)
         }
 
         // Globale Variablen für die App
@@ -984,8 +1029,18 @@
         function saveData() {
             try {
                 if (!testLocalStorage()) return false;
+                
+                // Session-Daten vor dem Speichern sichern
+                const currentSession = localStorage.getItem('weddingSession');
+                
                 const dataString = JSON.stringify(appData);
                 localStorage.setItem('weddingPlannerData', dataString);
+                
+                // Session-Daten wiederherstellen falls überschrieben
+                if (currentSession && !localStorage.getItem('weddingSession')) {
+                    localStorage.setItem('weddingSession', currentSession);
+                }
+                
                 console.log('💾 Daten gespeichert:', dataString.length, 'Zeichen');
                 return true;
             } catch (e) {
@@ -1025,11 +1080,24 @@
         }
 
         function showTab(tabName) {
-            console.log('🔀 Wechsle zu Tab:', tabName);
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
+            try {
+                console.log('🔀 Wechsle zu Tab:', tabName);
+                
+                // Session bei Aktivität verlängern
+                refreshSession();
+                
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                
+                const targetTab = document.getElementById(tabName);
+                const targetButton = document.querySelector(`button[onclick="showTab('${tabName}')"]`);
+                
+                if (targetTab) targetTab.classList.add('active');
+                if (targetButton) targetButton.classList.add('active');
+                
+            } catch (error) {
+                console.error('❌ Fehler beim Tab-Wechsel:', error);
+            }
         }
 
         // Datenverarbeitung
@@ -1209,7 +1277,7 @@
             }
         }
 
-        // Render Funktionen (verkürzt für bessere Performance)
+        // Render Funktionen
         function renderGuests() {
             const container = document.getElementById('guests-list');
             if (!container) return;
@@ -1245,94 +1313,877 @@
             });
         }
 
-        function renderAll() {
-            renderGuests();
-            // Weitere Render-Funktionen hier (verkürzt zur besseren Leistung)
-            updateDashboard();
-            updateFinances();
+        function renderTodos() {
+            const container = document.getElementById('todos-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            const priorityOrder = { 'Hoch': 1, 'Mittel': 2, 'Niedrig': 3 };
+            
+            appData.todos.sort((a, b) => {
+                const prioA = priorityOrder[a.priority] || 99;
+                const prioB = priorityOrder[b.priority] || 99;
+                if (prioA !== prioB) return prioA - prioB;
+                return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+            }).forEach(todo => {
+                const card = document.createElement('div');
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const isOverdue = todo.dueDate && new Date(todo.dueDate) < today && todo.status !== 'Erledigt';
+                card.className = `card ${isOverdue ? 'overdue' : ''}`;
+                
+                const priorityClass = {
+                    'Hoch': 'priority-hoch',
+                    'Mittel': 'priority-mittel',
+                    'Niedrig': 'priority-niedrig'
+                }[todo.priority] || 'priority-niedrig';
+
+                const statusClass = {
+                    'Erledigt': 'status-erledigt',
+                    'In Bearbeitung': 'status-in-bearbeitung',
+                    'Offen': 'status-open'
+                }[todo.status] || 'status-open';
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h3 class="font-bold text-lg">${todo.task}</h3>
+                            <p style="font-size: 0.875rem; color: #9ca3af;">${todo.category} / ${todo.responsibility}</p>
+                            ${todo.dueDate ? `<p style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.25rem;">Fällig: ${new Date(todo.dueDate).toLocaleDateString('de-DE')}</p>` : ''}
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="priority-badge ${priorityClass}">${todo.priority}</span>
+                            <span class="status-badge ${statusClass}">${todo.status}</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button class="btn-secondary flex-grow" onclick="editItem('todos', '${todo.id}')">Bearbeiten</button>
+                        <button class="btn-danger flex-grow" onclick="deleteItem('todos', '${todo.id}')">Löschen</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
 
-        // CRUD Operationen
+        function renderExpenses() {
+            const container = document.getElementById('expenses-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            const guestCounts = calculateGuestCounts();
+            
+            appData.expenses.sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'))
+                .forEach(expense => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    const statusClass = expense.status === 'Bezahlt' ? 'status-paid' : 'status-open';
+                    
+                    let costHtml;
+                    if (expense.type === 'dynamic') {
+                        let guestCount = 0;
+                        let guestType = '';
+                        if (expense.appliesTo === 'civil') {
+                            guestCount = guestCounts.civil + guestCounts.both;
+                            guestType = 'Standesamt Gäste';
+                        } else if (expense.appliesTo === 'reception') {
+                            guestCount = guestCounts.reception + guestCounts.both;
+                            guestType = 'Feier Gäste';
+                        } else {
+                            guestCount = guestCounts.civil + guestCounts.reception + guestCounts.both;
+                            guestType = 'Gäste (alle)';
+                        }
+                        const totalCost = (expense.costPerGuest || 0) * guestCount;
+                        costHtml = `
+                            <p class="text-xl text-red-400 font-semibold">${formatCurrency(totalCost)}</p>
+                            <p style="font-size: 0.75rem; color: #9ca3af;">${formatCurrency(expense.costPerGuest)} × ${guestCount} ${guestType}</p>
+                        `;
+                    } else {
+                        costHtml = `<p class="text-xl text-red-400 font-semibold">${formatCurrency(expense.cost)}</p>`;
+                    }
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-lg">${expense.item}</h3>
+                                ${costHtml}
+                            </div>
+                            <span class="status-badge ${statusClass}">${expense.status}</span>
+                        </div>
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.5rem;">
+                            ${expense.dueDate ? `<div>Fällig: ${new Date(expense.dueDate).toLocaleDateString('de-DE')}</div>` : ''}
+                            ${expense.payer ? `<div>Zahler: ${expense.payer}</div>` : ''}
+                        </div>
+                        <div class="flex gap-2 mt-4">
+                            <button class="btn-secondary flex-grow" onclick="editItem('expenses', '${expense.id}')">Bearbeiten</button>
+                            <button class="btn-danger flex-grow" onclick="deleteItem('expenses', '${expense.id}')">Löschen</button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+        }
+
+        function renderProviders() {
+            const container = document.getElementById('providers-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            appData.providers.forEach(provider => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                const statusClass = {
+                    'Beauftragt': 'status-beauftragt',
+                    'Abgelehnt': 'status-abgelehnt',
+                    'In Entscheidung': 'status-in-entscheidung'
+                }[provider.status] || 'status-in-entscheidung';
+
+                const paymentStatusClass = {
+                    'Bezahlt': 'status-paid',
+                    'Angezahlt': 'status-angezahlt',
+                    'Offen': 'status-open'
+                }[provider.paymentStatus] || 'status-open';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h3 class="font-bold text-lg">${provider.name}</h3>
+                            <p style="font-size: 0.875rem; color: #9ca3af;">${provider.category}</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-2" style="font-size: 0.75rem;">
+                            <span class="status-badge ${statusClass}">${provider.status}</span>
+                            <span class="status-badge ${paymentStatusClass}">${provider.paymentStatus}</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 space-y-2" style="font-size: 0.875rem;">
+                        <p><strong>Kontakt:</strong> ${provider.contact || '-'} (${provider.phone || 'N/A'}, ${provider.email || 'N/A'})</p>
+                        <p><strong>Preis:</strong> ${formatCurrency(provider.agreedPrice)}</p>
+                        <p><strong>Zahler:</strong> ${provider.payer || '-'}</p>
+                        ${provider.contractLink ? `<p><strong>Vertrag:</strong> <a href="${provider.contractLink}" target="_blank" class="text-teal-400 hover:underline">Link öffnen</a></p>` : ''}
+                    </div>
+                    <div class="flex gap-2 mt-4 border-t pt-3 border-gray-700">
+                        <button class="btn-secondary flex-grow" onclick="editItem('providers', '${provider.id}')">Bearbeiten</button>
+                        <button class="btn-danger flex-grow" onclick="deleteItem('providers', '${provider.id}')">Löschen</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderSchedule() {
+            try {
+                const civilList = document.getElementById('schedule-civil-list');
+                const receptionList = document.getElementById('schedule-reception-list');
+                
+                if (!civilList || !receptionList) {
+                    console.log('⚠️ Schedule Container nicht gefunden');
+                    return;
+                }
+                
+                civilList.innerHTML = '';
+                receptionList.innerHTML = '';
+                
+                if (!Array.isArray(appData.schedule)) {
+                    appData.schedule = [];
+                }
+                
+                const civilItems = appData.schedule.filter(item => item && item.type === 'civil')
+                    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+                const receptionItems = appData.schedule.filter(item => item && item.type === 'reception')
+                    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+                    
+                // Standesamt Items rendern
+                civilItems.forEach(item => {
+                    try {
+                        const scheduleItem = document.createElement('div');
+                        scheduleItem.className = 'card';
+                        scheduleItem.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <p class="font-bold">${item.startTime || '??:??'} - ${item.endTime || '??:??'}</p>
+                            </div>
+                            <h4 class="font-semibold text-lg mt-1">${item.description || 'Unbenannt'}</h4>
+                            <div class="mt-2 space-y-1" style="font-size: 0.875rem; color: #9ca3af;">
+                                ${item.location ? `<p><strong>Ort:</strong> ${item.location}</p>` : ''}
+                                ${item.people ? `<p><strong>Personen:</strong> ${item.people}</p>` : ''}
+                                ${item.provider ? `<p><strong>Dienstleister:</strong> ${item.provider}</p>` : ''}
+                                ${item.notes ? `<p class="mt-2 pt-2 border-t border-gray-700"><strong>Notiz:</strong> ${item.notes}</p>` : ''}
+                            </div>
+                            <div class="flex gap-2 mt-4 border-t pt-3 border-gray-700">
+                                <button class="btn-secondary flex-grow" onclick="editItem('schedule', '${item.id}')">Bearbeiten</button>
+                                <button class="btn-danger flex-grow" onclick="deleteItem('schedule', '${item.id}')">Löschen</button>
+                            </div>
+                        `;
+                        civilList.appendChild(scheduleItem);
+                    } catch (error) {
+                        console.error('❌ Fehler beim Rendern eines Standesamt-Items:', error);
+                    }
+                });
+                
+                // Feier Items rendern
+                receptionItems.forEach(item => {
+                    try {
+                        const scheduleItem = document.createElement('div');
+                        scheduleItem.className = 'card';
+                        scheduleItem.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <p class="font-bold">${item.startTime || '??:??'} - ${item.endTime || '??:??'}</p>
+                            </div>
+                            <h4 class="font-semibold text-lg mt-1">${item.description || 'Unbenannt'}</h4>
+                            <div class="mt-2 space-y-1" style="font-size: 0.875rem; color: #9ca3af;">
+                                ${item.location ? `<p><strong>Ort:</strong> ${item.location}</p>` : ''}
+                                ${item.people ? `<p><strong>Personen:</strong> ${item.people}</p>` : ''}
+                                ${item.provider ? `<p><strong>Dienstleister:</strong> ${item.provider}</p>` : ''}
+                                ${item.notes ? `<p class="mt-2 pt-2 border-t border-gray-700"><strong>Notiz:</strong> ${item.notes}</p>` : ''}
+                            </div>
+                            <div class="flex gap-2 mt-4 border-t pt-3 border-gray-700">
+                                <button class="btn-secondary flex-grow" onclick="editItem('schedule', '${item.id}')">Bearbeiten</button>
+                                <button class="btn-danger flex-grow" onclick="deleteItem('schedule', '${item.id}')">Löschen</button>
+                            </div>
+                        `;
+                        receptionList.appendChild(scheduleItem);
+                    } catch (error) {
+                        console.error('❌ Fehler beim Rendern eines Feier-Items:', error);
+                    }
+                });
+                
+                console.log('📅 Tagesplan gerendert:', `${civilItems.length} Standesamt, ${receptionItems.length} Feier`);
+                
+            } catch (error) {
+                console.error('❌ Fehler in renderSchedule:', error);
+            }
+        }
+
+        function renderMoodboard() {
+            const container = document.getElementById('moodboard-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            appData.moodboard.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card overflow-hidden';
+                card.innerHTML = `
+                    <img src="${item.imageUrl}" alt="${item.description}" class="w-full h-48 object-cover" onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400/2d3748/4fd1c5?text=Bild+nicht+gefunden';">
+                    <div class="p-4">
+                        <p style="font-size: 0.875rem;">${item.description}</p>
+                        <div class="flex gap-2 mt-4">
+                            <button class="btn-secondary flex-grow" onclick="editItem('moodboard', '${item.id}')">Bearbeiten</button>
+                            <button class="btn-danger flex-grow" onclick="deleteItem('moodboard', '${item.id}')">Löschen</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderHoneymoon() {
+            const container = document.getElementById('honeymoon-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            appData.honeymoon.forEach(plan => {
+                const card = document.createElement('div');
+                card.className = 'card flex flex-col';
+                card.style.justifyContent = 'space-between';
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-lg">${plan.destination}</h3>
+                        <p style="font-size: 0.875rem; color: #9ca3af; white-space: pre-wrap;">${plan.plan}</p>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button class="btn-secondary flex-grow" onclick="editItem('honeymoon', '${plan.id}')">Bearbeiten</button>
+                        <button class="btn-danger flex-grow" onclick="deleteItem('honeymoon', '${plan.id}')">Löschen</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderAll() {
+            try {
+                console.log('🔄 Alle Listen werden gerendert...');
+                
+                // Einzelne Render-Funktionen mit Fehlerbehandlung
+                try { renderGuests(); } catch (e) { console.error('❌ Fehler beim Rendern der Gäste:', e); }
+                try { renderTodos(); } catch (e) { console.error('❌ Fehler beim Rendern der Todos:', e); }
+                try { renderExpenses(); } catch (e) { console.error('❌ Fehler beim Rendern der Ausgaben:', e); }
+                try { renderProviders(); } catch (e) { console.error('❌ Fehler beim Rendern der Dienstleister:', e); }
+                try { renderSchedule(); } catch (e) { console.error('❌ Fehler beim Rendern des Tagesplans:', e); }
+                try { renderMoodboard(); } catch (e) { console.error('❌ Fehler beim Rendern des Moodboards:', e); }
+                try { renderHoneymoon(); } catch (e) { console.error('❌ Fehler beim Rendern der Flitterwochen:', e); }
+                try { updateDashboard(); } catch (e) { console.error('❌ Fehler beim Aktualisieren des Dashboards:', e); }
+                try { updateFinances(); } catch (e) { console.error('❌ Fehler beim Aktualisieren der Finanzen:', e); }
+                
+                console.log('✅ Rendering abgeschlossen');
+                
+            } catch (error) {
+                console.error('❌ Schwerwiegender Fehler in renderAll:', error);
+            }
+        }
+
+        // CRUD Operationen (verbessert mit Session-Verlängerung)
         function addItem(collection, item) {
-            item.id = generateId();
-            appData[collection].push(item);
-            saveData();
-            renderAll();
+            try {
+                if (!item || !collection) {
+                    console.error('❌ Fehler: Ungültige Daten für addItem');
+                    return;
+                }
+                
+                // Session bei Aktivität verlängern
+                refreshSession();
+                
+                item.id = generateId();
+                
+                // Sicherstellen dass die Collection existiert
+                if (!Array.isArray(appData[collection])) {
+                    appData[collection] = [];
+                }
+                
+                appData[collection].push(item);
+                const saved = saveData();
+                
+                if (saved) {
+                    renderAll();
+                    console.log(`✅ ${collection} hinzugefügt:`, item);
+                } else {
+                    console.error('❌ Speichern fehlgeschlagen');
+                    alert('Fehler beim Speichern. Bitte versuchen Sie es erneut.');
+                }
+            } catch (error) {
+                console.error('❌ Fehler in addItem:', error);
+                alert('Ein Fehler ist aufgetreten: ' + error.message);
+            }
         }
 
         function editItem(collection, id) {
-            const item = appData[collection].find(i => i.id === id);
-            if (item) {
-                openEditModal(collection, id, item);
+            try {
+                refreshSession(); // Session verlängern
+                const item = appData[collection]?.find(i => i.id === id);
+                if (item) {
+                    openEditModal(collection, id, item);
+                }
+            } catch (error) {
+                console.error('❌ Fehler in editItem:', error);
             }
         }
 
         function updateItem(collection, id, updatedData) {
-            const index = appData[collection].findIndex(i => i.id === id);
-            if (index !== -1) {
-                appData[collection][index] = { ...appData[collection][index], ...updatedData };
-                saveData();
-                renderAll();
+            try {
+                refreshSession(); // Session verlängern
+                const index = appData[collection]?.findIndex(i => i.id === id);
+                if (index !== -1) {
+                    appData[collection][index] = { ...appData[collection][index], ...updatedData };
+                    saveData();
+                    renderAll();
+                }
+            } catch (error) {
+                console.error('❌ Fehler in updateItem:', error);
             }
         }
 
         function deleteItem(collection, id) {
-            if (confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
-                appData[collection] = appData[collection].filter(i => i.id !== id);
-                saveData();
-                renderAll();
+            try {
+                if (confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
+                    refreshSession(); // Session verlängern
+                    appData[collection] = appData[collection]?.filter(i => i.id !== id) || [];
+                    saveData();
+                    renderAll();
+                    console.log(`🗑️ ${collection} gelöscht:`, id);
+                }
+            } catch (error) {
+                console.error('❌ Fehler in deleteItem:', error);
             }
         }
 
-        function openEditModal(collectionName, docId, data) {
-            // Modal-Funktionalität (vereinfacht)
-            alert('Bearbeitung in dieser Demo vereinfacht. Löschen Sie den Eintrag und erstellen Sie einen neuen.');
+        // Countdown und Dashboard-Image Setup
+        function setupCountdown() {
+            const dateInput = document.getElementById('wedding-date');
+            if (!dateInput) return;
+            
+            function startTimer(endDate) {
+                if (countdownInterval) clearInterval(countdownInterval);
+                
+                countdownInterval = setInterval(() => {
+                    const now = new Date().getTime();
+                    const distance = endDate - now;
+
+                    if (distance < 0) {
+                        clearInterval(countdownInterval);
+                        const timer = document.getElementById('countdown-timer');
+                        if (timer) {
+                            timer.innerHTML = '<span class="text-2xl font-bold" style="color: #f87171;">Herzlichen Glückwunsch! 🎉</span>';
+                        }
+                        return;
+                    }
+
+                    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    const daysEl = document.getElementById('days');
+                    const hoursEl = document.getElementById('hours');
+                    const minutesEl = document.getElementById('minutes');
+                    const secondsEl = document.getElementById('seconds');
+
+                    if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
+                    if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+                    if (minutesEl) minutesEl.textContent = String(minutes).padStart(2, '0');
+                    if (secondsEl) secondsEl.textContent = String(seconds).padStart(2, '0');
+                }, 1000);
+            }
+
+            // Gespeichertes Datum laden
+            if (appData.weddingDate) {
+                dateInput.value = appData.weddingDate;
+                const targetDate = new Date(appData.weddingDate).getTime();
+                startTimer(targetDate);
+                console.log('📅 Countdown gestartet für:', appData.weddingDate);
+            }
+
+            dateInput.addEventListener('change', () => {
+                const newDate = dateInput.value;
+                if (newDate) {
+                    refreshSession(); // Session verlängern
+                    appData.weddingDate = newDate;
+                    saveData();
+                    const targetDate = new Date(newDate).getTime();
+                    startTimer(targetDate);
+                    console.log('📅 Neues Hochzeitsdatum gesetzt:', newDate);
+                }
+            });
+        }
+
+        function setupDashboardImage() {
+            const imageInput = document.getElementById('image-upload-input');
+            const dashboardImage = document.getElementById('dashboard-image');
+            
+            if (!imageInput || !dashboardImage) return;
+            
+            // Gespeichertes Bild laden
+            if (appData.dashboardImage) {
+                dashboardImage.src = appData.dashboardImage;
+                console.log('🖼️ Dashboard-Bild geladen');
+            }
+
+            imageInput.addEventListener('change', () => {
+                const file = imageInput.files[0];
+                if (!file) return;
+
+                // Dateigröße prüfen (max 2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Bitte wählen Sie ein kleineres Bild (max. 2MB)');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const base64String = e.target.result;
+                    dashboardImage.src = base64String;
+                    refreshSession(); // Session verlängern
+                    appData.dashboardImage = base64String;
+                    saveData();
+                    console.log('🖼️ Neues Dashboard-Bild gespeichert');
+                };
+                reader.onerror = () => {
+                    alert('Fehler beim Laden des Bildes');
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
         function closeModal() {
             document.getElementById('edit-modal').classList.add('hidden');
         }
 
+        // Expense Form Setup (muss vor setupForms definiert werden)
+        function setupExpenseForm() {
+            try {
+                const form = document.getElementById('expense-form');
+                if (!form) {
+                    console.log('⚠️ Expense Form nicht gefunden');
+                    return;
+                }
+                
+                function updateExpenseFormUI() {
+                    try {
+                        const typeRadio = document.querySelector('input[name="expense-type"]:checked');
+                        const type = typeRadio?.value || 'fixed';
+                        const costFieldsContainer = document.getElementById('expense-cost-fields');
+                        const dynamicOptions = document.getElementById('expense-dynamic-options');
+
+                        if (!costFieldsContainer || !dynamicOptions) {
+                            console.log('⚠️ Expense Form Container nicht gefunden');
+                            return;
+                        }
+
+                        if (type === 'dynamic') {
+                            costFieldsContainer.innerHTML = '<input type="number" id="expense-cost-per-guest" placeholder="Kosten pro Gast in EUR" style="background-color: #4a5568; color: #e2e8f0; border: 1px solid #718096; padding: 0.5rem; border-radius: 0.375rem; width: 100%;" required>';
+                            dynamicOptions.classList.remove('hidden');
+                        } else {
+                            costFieldsContainer.innerHTML = '<input type="number" id="expense-cost" placeholder="Kosten in EUR" style="background-color: #4a5568; color: #e2e8f0; border: 1px solid #718096; padding: 0.5rem; border-radius: 0.375rem; width: 100%;" required>';
+                            dynamicOptions.classList.add('hidden');
+                        }
+                        
+                        console.log('💰 Expense Form UI aktualisiert:', type);
+                    } catch (error) {
+                        console.error('❌ Fehler in updateExpenseFormUI:', error);
+                    }
+                }
+                
+                // Event Listener für Radio Buttons
+                const radioButtons = document.querySelectorAll('input[name="expense-type"]');
+                radioButtons.forEach(radio => {
+                    radio.addEventListener('change', updateExpenseFormUI);
+                });
+                
+                // Initial UI Setup
+                updateExpenseFormUI();
+                
+                console.log('✅ Expense Form erfolgreich eingerichtet');
+                
+            } catch (error) {
+                console.error('❌ Fehler in setupExpenseForm:', error);
+            }
+        }
+
         // Formular Events
         function setupForms() {
+            console.log('📝 Formulare werden eingerichtet...');
+            
             // Login Form
-            document.getElementById('login-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await login();
-            });
-
-            // Enter-Taste für Login
-            document.getElementById('login-password').addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter') {
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     await login();
-                }
-            });
+                });
+            }
+
+            // Enter-Taste für Login
+            const loginPassword = document.getElementById('login-password');
+            if (loginPassword) {
+                loginPassword.addEventListener('keypress', async (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        await login();
+                    }
+                });
+            }
 
             // Guest Form
-            document.getElementById('guest-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const form = e.target;
-                addItem('guests', {
-                    name: form['guest-name'].value,
-                    relationship: form['guest-relationship'].value,
-                    notes: form['guest-notes'].value,
-                    status: form['guest-status'].value,
-                    attendsCivil: form['guest-attends-civil'].checked,
-                    attendsReception: form['guest-attends-reception'].checked
+            const guestForm = document.getElementById('guest-form');
+            if (guestForm) {
+                guestForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const form = e.target;
+                    addItem('guests', {
+                        name: form['guest-name'].value,
+                        relationship: form['guest-relationship'].value,
+                        notes: form['guest-notes'].value,
+                        status: form['guest-status'].value,
+                        attendsCivil: form['guest-attends-civil'].checked,
+                        attendsReception: form['guest-attends-reception'].checked
+                    });
+                    form.reset();
+                    console.log('👥 Gast hinzugefügt');
                 });
-                form.reset();
-            });
+            }
 
-            // Budget Form
-            document.getElementById('budget-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                appData.budget = Number(document.getElementById('total-budget').value) || 0;
-                saveData();
-                renderAll();
-            });
+            // Todo Form
+            const todoForm = document.getElementById('todo-form');
+            if (todoForm) {
+                todoForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const form = e.target;
+                    addItem('todos', {
+                        task: form['todo-task'].value,
+                        dueDate: form['todo-due-date'].value,
+                        status: form['todo-status'].value,
+                        category: form['todo-category'].value,
+                        priority: form['todo-priority'].value,
+                        responsibility: form['todo-responsibility'].value
+                    });
+                    form.reset();
+                    console.log('✅ Todo hinzugefügt');
+                });
+            }
 
-            // Weitere Forms hier...
+            // Budget Form (mit Session-Verlängerung)
+            const budgetForm = document.getElementById('budget-form');
+            if (budgetForm) {
+                budgetForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        refreshSession(); // Session verlängern
+                        const budgetInput = document.getElementById('total-budget');
+                        appData.budget = Number(budgetInput?.value) || 0;
+                        saveData();
+                        renderAll();
+                        console.log('💰 Budget gesetzt:', appData.budget);
+                    } catch (error) {
+                        console.error('❌ Fehler beim Setzen des Budgets:', error);
+                        alert('Fehler beim Speichern des Budgets: ' + error.message);
+                    }
+                });
+            }
+
+            // Expense Form (mit verbesserter Fehlerbehandlung)
+            const expenseForm = document.getElementById('expense-form');
+            if (expenseForm) {
+                setupExpenseForm();
+                expenseForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const form = e.target;
+                        const itemInput = form.querySelector('#expense-item');
+                        const statusInput = form.querySelector('#expense-status');
+                        const dueDateInput = form.querySelector('#expense-due-date');
+                        const payerInput = form.querySelector('#expense-payer');
+                        
+                        if (!itemInput || !itemInput.value.trim()) {
+                            alert('Bitte geben Sie einen Posten ein');
+                            return;
+                        }
+                        
+                        const typeRadio = form.querySelector('input[name="expense-type"]:checked');
+                        const type = typeRadio?.value || 'fixed';
+                        
+                        const data = {
+                            item: itemInput.value.trim(),
+                            type: type,
+                            status: statusInput?.value || 'Offen',
+                            dueDate: dueDateInput?.value || '',
+                            payer: payerInput?.value || ''
+                        };
+                        
+                        if (type === 'dynamic') {
+                            const costPerGuestInput = form.querySelector('#expense-cost-per-guest');
+                            const appliesToInput = form.querySelector('#expense-applies-to');
+                            data.costPerGuest = Number(costPerGuestInput?.value) || 0;
+                            data.appliesTo = appliesToInput?.value || 'reception';
+                        } else {
+                            const costInput = form.querySelector('#expense-cost');
+                            data.cost = Number(costInput?.value) || 0;
+                        }
+                        
+                        addItem('expenses', data);
+                        form.reset();
+                        setupExpenseForm(); // UI zurücksetzen
+                        console.log('💸 Ausgabe hinzugefügt');
+                        
+                    } catch (error) {
+                        console.error('❌ Fehler beim Hinzufügen der Ausgabe:', error);
+                        alert('Fehler beim Hinzufügen der Ausgabe: ' + error.message);
+                    }
+                });
+            }
+            
+            // Provider Form (mit verbesserter Fehlerbehandlung)
+            const providerForm = document.getElementById('provider-form');
+            if (providerForm) {
+                providerForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const form = e.target;
+                        const nameInput = form.querySelector('#provider-name');
+                        
+                        if (!nameInput || !nameInput.value.trim()) {
+                            alert('Bitte geben Sie einen Anbieternamen ein');
+                            return;
+                        }
+                        
+                        const data = {
+                            name: nameInput.value.trim(),
+                            category: form.querySelector('#provider-category')?.value || 'Sonstiges',
+                            contact: form.querySelector('#provider-contact')?.value || '',
+                            phone: form.querySelector('#provider-phone')?.value || '',
+                            email: form.querySelector('#provider-email')?.value || '',
+                            agreedPrice: Number(form.querySelector('#provider-price')?.value) || 0,
+                            status: form.querySelector('#provider-status')?.value || 'In Entscheidung',
+                            paymentStatus: form.querySelector('#provider-payment-status')?.value || 'Offen',
+                            payer: form.querySelector('#provider-payer')?.value || 'Brautpaar',
+                            contractLink: form.querySelector('#provider-contract')?.value || ''
+                        };
+                        
+                        addItem('providers', data);
+                        form.reset();
+                        console.log('🏪 Dienstleister hinzugefügt');
+                        
+                    } catch (error) {
+                        console.error('❌ Fehler beim Hinzufügen des Dienstleisters:', error);
+                        alert('Fehler beim Hinzufügen des Dienstleisters: ' + error.message);
+                    }
+                });
+            }
+            
+            // Schedule Forms (mit verbesserter Fehlerbehandlung)
+            const scheduleCivilForm = document.getElementById('schedule-civil-form');
+            if (scheduleCivilForm) {
+                scheduleCivilForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const form = e.target;
+                        const startInput = form.querySelector('#schedule-civil-start');
+                        const endInput = form.querySelector('#schedule-civil-end');
+                        const descInput = form.querySelector('#schedule-civil-desc');
+                        
+                        if (!startInput?.value || !endInput?.value || !descInput?.value.trim()) {
+                            alert('Bitte füllen Sie Start, Ende und Beschreibung aus');
+                            return;
+                        }
+                        
+                        // Zeit-Validierung
+                        if (startInput.value >= endInput.value) {
+                            alert('Die Endzeit muss nach der Startzeit liegen');
+                            return;
+                        }
+                        
+                        const data = {
+                            startTime: startInput.value,
+                            endTime: endInput.value,
+                            description: descInput.value.trim(),
+                            location: form.querySelector('#schedule-civil-location')?.value.trim() || '',
+                            people: form.querySelector('#schedule-civil-people')?.value.trim() || '',
+                            provider: form.querySelector('#schedule-civil-provider')?.value.trim() || '',
+                            notes: form.querySelector('#schedule-civil-notes')?.value.trim() || '',
+                            type: 'civil'
+                        };
+                        
+                        console.log('📝 Standesamt-Daten:', data);
+                        addItem('schedule', data);
+                        form.reset();
+                        console.log('📅 Standesamt-Termin hinzugefügt');
+                        
+                    } catch (error) {
+                        console.error('❌ Fehler beim Hinzufügen des Standesamt-Termins:', error);
+                        alert('Fehler beim Hinzufügen des Termins: ' + error.message);
+                    }
+                });
+            }
+            
+            const scheduleReceptionForm = document.getElementById('schedule-reception-form');
+            if (scheduleReceptionForm) {
+                scheduleReceptionForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const form = e.target;
+                        const startInput = form.querySelector('#schedule-reception-start');
+                        const endInput = form.querySelector('#schedule-reception-end');
+                        const descInput = form.querySelector('#schedule-reception-desc');
+                        
+                        if (!startInput?.value || !endInput?.value || !descInput?.value.trim()) {
+                            alert('Bitte füllen Sie Start, Ende und Beschreibung aus');
+                            return;
+                        }
+                        
+                        // Zeit-Validierung
+                        if (startInput.value >= endInput.value) {
+                            alert('Die Endzeit muss nach der Startzeit liegen');
+                            return;
+                        }
+                        
+                        const data = {
+                            startTime: startInput.value,
+                            endTime: endInput.value,
+                            description: descInput.value.trim(),
+                            location: form.querySelector('#schedule-reception-location')?.value.trim() || '',
+                            people: form.querySelector('#schedule-reception-people')?.value.trim() || '',
+                            provider: form.querySelector('#schedule-reception-provider')?.value.trim() || '',
+                            notes: form.querySelector('#schedule-reception-notes')?.value.trim() || '',
+                            type: 'reception'
+                        };
+                        
+                        console.log('📝 Feier-Daten:', data);
+                        addItem('schedule', data);
+                        form.reset();
+                        console.log('🎉 Feier-Termin hinzugefügt');
+                        
+                    } catch (error) {
+                        console.error('❌ Fehler beim Hinzufügen des Feier-Termins:', error);
+                        alert('Fehler beim Hinzufügen des Termins: ' + error.message);
+                    }
+                });
+            }
+            
+            // Moodboard Form (mit verbesserter Fehlerbehandlung)
+            const moodboardForm = document.getElementById('moodboard-form');
+            if (moodboardForm) {
+                moodboardForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const form = e.target;
+                        const imageInput = form.querySelector('#moodboard-image');
+                        const descInput = form.querySelector('#moodboard-desc');
+                        
+                        if (!imageInput?.value.trim() || !descInput?.value.trim()) {
+                            alert('Bitte füllen Sie Bild-URL und Beschreibung aus');
+                            return;
+                        }
+                        
+                        // Einfache URL-Validierung
+                        const url = imageInput.value.trim();
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            alert('Bitte geben Sie eine gültige URL ein (mit http:// oder https://)');
+                            return;
+                        }
+                        
+                        const data = {
+                            imageUrl: url,
+                            description: descInput.value.trim()
+                        };
+                        
+                        addItem('moodboard', data);
+                        form.reset();
+                        console.log('🖼️ Moodboard-Bild hinzugefügt');
+                        
+                    } catch (error) {
+                        console.error('❌ Fehler beim Hinzufügen des Moodboard-Bildes:', error);
+                        alert('Fehler beim Hinzufügen des Bildes: ' + error.message);
+                    }
+                });
+            }
+            
+            // Honeymoon Form (mit verbesserter Fehlerbehandlung)
+            const honeymoonForm = document.getElementById('honeymoon-form');
+            if (honeymoonForm) {
+                honeymoonForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const form = e.target;
+                        const destInput = form.querySelector('#honeymoon-dest');
+                        const planInput = form.querySelector('#honeymoon-plan');
+                        
+                        if (!destInput?.value.trim()) {
+                            alert('Bitte geben Sie ein Reiseziel ein');
+                            return;
+                        }
+                        
+                        const data = {
+                            destination: destInput.value.trim(),
+                            plan: planInput?.value || ''
+                        };
+                        
+                        addItem('honeymoon', data);
+                        form.reset();
+                        console.log('🏝️ Flitterwochen-Plan hinzugefügt');
+                        
+                    } catch (error) {
+                        console.error('❌ Fehler beim Hinzufügen des Flitterwochen-Plans:', error);
+                        alert('Fehler beim Hinzufügen des Plans: ' + error.message);
+                    }
+                });
+            }
+
+            console.log('✅ Alle Formulare erfolgreich eingerichtet');
         }
 
         // Initialisierung
@@ -1346,25 +2197,11 @@
             const isAuthenticated = checkAuthentication();
             console.log('🔐 Authentifizierung:', isAuthenticated ? 'OK' : 'Erforderlich');
             
-            if (!isAuthenticated) {
-                return; // Stoppe Initialisierung wenn nicht authentifiziert
+            if (isAuthenticated) {
+                // Session-Überwachung starten für authentifizierte Benutzer
+                startSessionMonitoring();
+                showTab('dashboard');
             }
-
-            // Session-Überwachung starten
-            startSessionMonitoring();
-            
-            // Daten laden
-            loadData();
-            
-            // Budget Input laden
-            const budgetInput = document.getElementById('total-budget');
-            if (budgetInput) {
-                budgetInput.value = appData.budget;
-            }
-            
-            // Initial render
-            renderAll();
-            showTab('dashboard');
             
             console.log('✅ App erfolgreich initialisiert');
         }
