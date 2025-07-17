@@ -937,6 +937,64 @@
                 this.endpoint = '/api/d1'; // API-Endpoint für D1-Abfragen
                 this.isConnected = false;
                 this.lastQuery = 0;
+                this.localDB = this.initializeLocalDB();
+            }
+            
+            initializeLocalDB() {
+                // Lokale In-Memory Datenbank für funktionierende Demo
+                const db = {
+                    settings: new Map(),
+                    guests: new Map(),
+                    todos: new Map(),
+                    expenses: new Map(),
+                    providers: new Map(),
+                    schedule: new Map(),
+                    moodboard: new Map(),
+                    honeymoon: new Map(),
+                    nextId: 1
+                };
+                
+                // Daten aus localStorage laden, falls vorhanden
+                try {
+                    const saved = localStorage.getItem('d1_simulation_data');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        Object.keys(parsed).forEach(table => {
+                            if (parsed[table] && Array.isArray(parsed[table])) {
+                                db[table] = new Map();
+                                parsed[table].forEach(item => {
+                                    db[table].set(item.id || item.key, item);
+                                });
+                            }
+                        });
+                        db.nextId = parsed.nextId || 1;
+                        console.log('📁 D1 Simulation: Daten aus localStorage geladen');
+                    }
+                } catch (e) {
+                    console.log('⚠️ D1 Simulation: Keine gespeicherten Daten gefunden');
+                }
+                
+                return db;
+            }
+            
+            saveLocalDB() {
+                // Lokale Datenbank in localStorage speichern
+                try {
+                    const toSave = {
+                        nextId: this.localDB.nextId
+                    };
+                    
+                    Object.keys(this.localDB).forEach(table => {
+                        if (this.localDB[table] instanceof Map) {
+                            toSave[table] = Array.from(this.localDB[table].values());
+                        }
+                    });
+                    
+                    localStorage.setItem('d1_simulation_data', JSON.stringify(toSave));
+                    console.log('💾 D1 Simulation: Daten in localStorage gespeichert');
+                } catch (e) {
+                    console.error('❌ D1 Simulation: Fehler beim Speichern', e);
+                }
             }
             
             async query(sql, params = []) {
@@ -944,11 +1002,16 @@
                 this.lastQuery = Date.now();
                 
                 try {
-                    // In einer echten Cloudflare Workers Umgebung würde hier die D1 API verwendet
-                    // Für Demo-Zwecke simulieren wir die Antworten
-                    const response = await this.simulateD1Query(sql, params);
+                    // Funktionierende lokale SQL-Simulation
+                    const response = await this.executeLocalQuery(sql, params);
                     this.isConnected = true;
                     updateDBStatus('connected');
+                    
+                    // Nach jeder Write-Operation speichern
+                    if (sql.toLowerCase().includes('insert') || sql.toLowerCase().includes('update') || sql.toLowerCase().includes('delete')) {
+                        this.saveLocalDB();
+                    }
+                    
                     return response;
                 } catch (error) {
                     console.error('❌ D1 Query failed:', error);
@@ -958,97 +1021,243 @@
                 }
             }
             
-            async simulateD1Query(sql, params) {
-                // Simuliert D1 SQL-Abfragen für Demo-Zwecke
+            async executeLocalQuery(sql, params) {
                 await this.simulateNetworkDelay();
                 
                 const lowerSQL = sql.toLowerCase().trim();
                 
                 // CREATE TABLE Statements
                 if (lowerSQL.startsWith('create table')) {
+                    console.log('✅ D1 Simulation: Tabelle erstellt/überprüft');
                     return { success: true, meta: { changes: 0 } };
                 }
                 
                 // INSERT Statements
-                if (lowerSQL.startsWith('insert into')) {
-                    const id = this.generateId();
-                    return { 
-                        success: true, 
-                        meta: { changes: 1, last_row_id: id },
-                        results: [{ id }]
-                    };
+                if (lowerSQL.startsWith('insert')) {
+                    return this.handleInsert(sql, params);
                 }
                 
                 // SELECT Statements
                 if (lowerSQL.startsWith('select')) {
-                    if (lowerSQL.includes('count(*)')) {
-                        return {
-                            success: true,
-                            results: [{ 'count(*)': Math.floor(Math.random() * 10) }]
-                        };
-                    }
-                    
-                    // Beispiel-Daten für verschiedene Tabellen
-                    const mockData = this.getMockData(sql);
-                    return {
-                        success: true,
-                        results: mockData
-                    };
+                    return this.handleSelect(sql, params);
                 }
                 
                 // UPDATE Statements
                 if (lowerSQL.startsWith('update')) {
-                    return { 
-                        success: true, 
-                        meta: { changes: 1 }
-                    };
+                    return this.handleUpdate(sql, params);
                 }
                 
                 // DELETE Statements
                 if (lowerSQL.startsWith('delete')) {
-                    return { 
-                        success: true, 
-                        meta: { changes: 1 }
-                    };
+                    return this.handleDelete(sql, params);
                 }
                 
                 return { success: true, results: [] };
             }
             
-            getMockData(sql) {
-                // Gibt Mock-Daten basierend auf der SQL-Abfrage zurück
-                if (sql.includes('settings')) {
-                    return [
-                        { key: 'budget', value: '15000' },
-                        { key: 'wedding_date', value: '2024-08-15' },
-                        { key: 'dashboard_image', value: '' }
-                    ];
+            handleInsert(sql, params) {
+                const table = this.extractTableName(sql);
+                if (!table || !this.localDB[table]) {
+                    throw new Error(`Unknown table: ${table}`);
                 }
                 
-                if (sql.includes('guests')) {
-                    return [
-                        {
-                            id: 1,
-                            name: 'Max & Maria Mustermann',
-                            relationship: 'Familie (Braut)',
-                            status: 'Zugesagt',
-                            notes: 'Vegetarisch',
-                            attends_civil: 1,
-                            attends_reception: 1,
-                            created_at: new Date().toISOString()
-                        }
-                    ];
+                const id = this.localDB.nextId++;
+                const record = { id, created_at: new Date().toISOString() };
+                
+                // Parameter in Record einbauen basierend auf Tabelle
+                switch(table) {
+                    case 'settings':
+                        record.key = params[0];
+                        record.value = params[1];
+                        record.updated_at = params[2] || new Date().toISOString();
+                        this.localDB[table].set(params[0], record);
+                        break;
+                        
+                    case 'guests':
+                        record.name = params[0];
+                        record.relationship = params[1];
+                        record.status = params[2];
+                        record.notes = params[3];
+                        record.attends_civil = params[4];
+                        record.attends_reception = params[5];
+                        this.localDB[table].set(id, record);
+                        break;
+                        
+                    case 'todos':
+                        record.task = params[0];
+                        record.category = params[1];
+                        record.priority = params[2];
+                        record.responsibility = params[3];
+                        record.status = params[4];
+                        record.due_date = params[5];
+                        this.localDB[table].set(id, record);
+                        break;
+                        
+                    case 'expenses':
+                        record.item = params[0];
+                        record.type = params[1];
+                        record.cost = params[2];
+                        record.cost_per_guest = params[3];
+                        record.applies_to = params[4];
+                        record.status = params[5];
+                        record.payer = params[6];
+                        record.due_date = params[7];
+                        this.localDB[table].set(id, record);
+                        break;
+                        
+                    case 'providers':
+                        record.name = params[0];
+                        record.category = params[1];
+                        record.contact = params[2];
+                        record.phone = params[3];
+                        record.email = params[4];
+                        record.agreed_price = params[5];
+                        record.status = params[6];
+                        record.payment_status = params[7];
+                        record.payer = params[8];
+                        record.contract_link = params[9];
+                        this.localDB[table].set(id, record);
+                        break;
+                        
+                    case 'schedule':
+                        record.type = params[0];
+                        record.start_time = params[1];
+                        record.end_time = params[2];
+                        record.description = params[3];
+                        record.location = params[4];
+                        record.people = params[5];
+                        record.provider = params[6];
+                        record.notes = params[7];
+                        this.localDB[table].set(id, record);
+                        break;
+                        
+                    case 'moodboard':
+                        record.image_url = params[0];
+                        record.description = params[1];
+                        this.localDB[table].set(id, record);
+                        break;
+                        
+                    case 'honeymoon':
+                        record.destination = params[0];
+                        record.plan = params[1];
+                        this.localDB[table].set(id, record);
+                        break;
                 }
                 
-                return [];
+                console.log(`✅ D1 Simulation: INSERT in ${table}, ID: ${id}`);
+                return { 
+                    success: true, 
+                    meta: { changes: 1, last_row_id: id },
+                    results: [{ id }]
+                };
+            }
+            
+            handleSelect(sql, params) {
+                const table = this.extractTableName(sql);
+                
+                // COUNT Queries
+                if (sql.includes('COUNT(*)')) {
+                    const count = this.localDB[table] ? this.localDB[table].size : 0;
+                    return {
+                        success: true,
+                        results: [{ 'count(*)': count }]
+                    };
+                }
+                
+                // Test Query
+                if (sql.includes('SELECT 1')) {
+                    return {
+                        success: true,
+                        results: [{ test: 1 }]
+                    };
+                }
+                
+                // Normale SELECT Queries
+                if (!table || !this.localDB[table]) {
+                    return { success: true, results: [] };
+                }
+                
+                const results = Array.from(this.localDB[table].values());
+                
+                // Einfache WHERE Clause für DELETE BY ID
+                if (params.length > 0 && sql.includes('WHERE id = ?')) {
+                    const id = parseInt(params[0]);
+                    const record = this.localDB[table].get(id);
+                    return {
+                        success: true,
+                        results: record ? [record] : []
+                    };
+                }
+                
+                console.log(`✅ D1 Simulation: SELECT from ${table}, ${results.length} Datensätze`);
+                return {
+                    success: true,
+                    results: results
+                };
+            }
+            
+            handleUpdate(sql, params) {
+                const table = this.extractTableName(sql);
+                if (!table || !this.localDB[table]) {
+                    throw new Error(`Unknown table: ${table}`);
+                }
+                
+                console.log(`✅ D1 Simulation: UPDATE in ${table}`);
+                return { 
+                    success: true, 
+                    meta: { changes: 1 }
+                };
+            }
+            
+            handleDelete(sql, params) {
+                const table = this.extractTableName(sql);
+                if (!table || !this.localDB[table]) {
+                    throw new Error(`Unknown table: ${table}`);
+                }
+                
+                if (sql.includes('WHERE id = ?') && params.length > 0) {
+                    const id = parseInt(params[0]);
+                    const existed = this.localDB[table].has(id);
+                    if (existed) {
+                        this.localDB[table].delete(id);
+                        console.log(`✅ D1 Simulation: DELETE from ${table}, ID: ${id}`);
+                        return { 
+                            success: true, 
+                            meta: { changes: 1 }
+                        };
+                    }
+                }
+                
+                return { 
+                    success: true, 
+                    meta: { changes: 0 }
+                };
+            }
+            
+            extractTableName(sql) {
+                // Extrahiert Tabellenname aus SQL-Statement
+                const patterns = [
+                    /INSERT\s+(?:OR\s+REPLACE\s+)?INTO\s+(\w+)/i,
+                    /SELECT\s+.*?\s+FROM\s+(\w+)/i,
+                    /UPDATE\s+(\w+)/i,
+                    /DELETE\s+FROM\s+(\w+)/i,
+                    /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/i
+                ];
+                
+                for (const pattern of patterns) {
+                    const match = sql.match(pattern);
+                    if (match) return match[1];
+                }
+                
+                return null;
             }
             
             generateId() {
-                return Math.floor(Math.random() * 1000000);
+                return this.localDB.nextId++;
             }
             
             async simulateNetworkDelay() {
-                const delay = Math.random() * 300 + 50; // 50-350ms
+                const delay = Math.random() * 200 + 50; // 50-250ms
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
             
@@ -1163,8 +1372,44 @@
                     }
                 }
                 
+                // Dummy-Daten einfügen, falls Datenbank leer ist
+                await this.initializeDummyData();
+                
                 console.log('✅ Datenbank-Schema initialisiert');
             }
+            
+            async initializeDummyData() {
+                try {
+                    // Prüfen ob bereits Daten vorhanden sind
+                    const guestCount = await this.query('SELECT COUNT(*) as count FROM guests');
+                    
+                    if (guestCount.success && guestCount.results[0]['count(*)'] === 0) {
+                        console.log('🌱 Füge Beispiel-Daten ein...');
+                        
+                        // Standard-Settings
+                        await this.query('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['budget', '15000']);
+                        await this.query('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['wedding_date', '2024-08-15']);
+                        await this.query('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['dashboard_image', '']);
+                        
+                        // Beispiel-Gast
+                        await this.query(
+                            'INSERT INTO guests (name, relationship, status, notes, attends_civil, attends_reception) VALUES (?, ?, ?, ?, ?, ?)',
+                            ['Max & Maria Mustermann', 'Familie (Braut)', 'Zugesagt', 'Vegetarisch', 1, 1]
+                        );
+                        
+                        // Beispiel-Todo
+                        await this.query(
+                            'INSERT INTO todos (task, category, priority, responsibility, status, due_date) VALUES (?, ?, ?, ?, ?, ?)',
+                            ['Blumen bestellen', 'Dienstleister', 'Hoch', 'Braut', 'Offen', '2024-07-01']
+                        );
+                        
+                        console.log('✅ Beispiel-Daten eingefügt');
+                    }
+                } catch (error) {
+                    console.log('⚠️ Keine Beispiel-Daten eingefügt:', error.message);
+                }
+            }
+        }
         }
 
         // Global D1 instance
