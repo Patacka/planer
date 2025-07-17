@@ -1465,6 +1465,10 @@
                 await loadDataFromDatabase();
                 dbState.isConnected = true;
                 updateDBStatus('connected');
+                
+                // UI nach erfolgreichem Datenladen aktualisieren
+                renderAll();
+                
                 return true;
                 
             } catch (error) {
@@ -1860,6 +1864,10 @@
                         statusElement.textContent = '🔄 Teste Verbindung...';
                         statusElement.className = 'text-yellow-400 font-bold';
                         break;
+                    case 'offline':
+                        statusElement.textContent = '🔴 Nicht verbunden';
+                        statusElement.className = 'text-red-400 font-bold';
+                        break;
                     case 'error':
                         statusElement.textContent = '🔴 Verbindungsfehler';
                         statusElement.className = 'text-red-400 font-bold';
@@ -1867,8 +1875,10 @@
                 }
             }
             
-            if (queryTimeElement && d1Database.lastQuery) {
+            if (queryTimeElement && d1Database && d1Database.lastQuery) {
                 queryTimeElement.textContent = formatRelativeTime(d1Database.lastQuery);
+            } else if (queryTimeElement) {
+                queryTimeElement.textContent = 'Noch keine Abfrage';
             }
             
             updateSyncIndicator(status === 'connected' ? 'online' : 'offline');
@@ -2040,8 +2050,13 @@
             }
             
             setupExpenseForm();
-            renderAll();
-            updateDBStatus(dbState.isConnected ? 'connected' : 'error');
+            
+            // Nur rendern wenn bereits Daten vorhanden sind
+            if (appData.guests.length > 0 || appData.todos.length > 0 || appData.budget > 0) {
+                renderAll();
+            }
+            
+            updateDBStatus(dbState.isConnected ? 'connected' : 'offline');
         }
 
         function checkAuthentication() {
