@@ -168,7 +168,7 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             border: 1px solid #4a5568;
             width: 100%;
-            max-width: 500px;
+            max-width: 400px;
             text-align: center;
         }
         .login-error {
@@ -269,21 +269,6 @@
         .priority-niedrig, .status-geplante-einladung {
             background-color: #4A5568; color: #E2E8F0;
         }
-        .wedding-code {
-            font-family: 'Courier New', monospace;
-            font-size: 1.5rem;
-            font-weight: bold;
-            letter-spacing: 0.2rem;
-            background: linear-gradient(45deg, #4fd1c5, #38b2ac);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-align: center;
-            padding: 1rem;
-            border: 2px dashed #4fd1c5;
-            border-radius: 0.5rem;
-            margin: 1rem 0;
-        }
         .grid {
             display: grid;
             gap: 1rem;
@@ -378,34 +363,7 @@
             <div style="text-align: center; margin-bottom: 2rem;">
                 <h1 class="text-4xl font-serif">💒</h1>
                 <h2 class="text-2xl font-serif mt-2">Hochzeitsplaner</h2>
-                <p class="text-gray-400 mt-2">Auto-Sync zwischen allen Geräten</p>
-            </div>
-            
-            <!-- Wedding Code Section -->
-            <div style="margin-bottom: 2rem; padding: 1.5rem; border: 1px solid #4a5568; border-radius: 0.75rem; background-color: #374151;">
-                <h3 class="text-lg font-serif mb-4">Hochzeits-Code</h3>
-                
-                <div class="grid grid-cols-1 gap-4">
-                    <!-- Neuen Code erstellen -->
-                    <div>
-                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; color: #d1d5db;">Neuen Code erstellen:</label>
-                        <button onclick="generateWeddingCode()" class="btn-primary w-full">
-                            🔧 Neuen Hochzeits-Code generieren
-                        </button>
-                        <div id="new-wedding-code" class="hidden mt-2">
-                            <div class="wedding-code" id="generated-code">DEMO-2024</div>
-                            <p style="font-size: 0.75rem; color: #9ca3af; text-align: center;">
-                                Teilen Sie diesen Code mit Ihrem Partner
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <!-- Bestehenden Code eingeben -->
-                    <div>
-                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; color: #d1d5db;">Bestehenden Code eingeben:</label>
-                        <input type="text" id="wedding-code-input" placeholder="z.B. DEMO-2024" style="text-align: center; font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 0.1rem;">
-                    </div>
-                </div>
+                <p class="text-gray-400 mt-2">Automatische Synchronisation zwischen allen Geräten</p>
             </div>
             
             <form id="login-form">
@@ -426,7 +384,7 @@
             <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #4a5568; text-align: center;">
                 <p style="font-size: 0.75rem; color: #6b7280;">
                     🔒 Ihre Daten werden verschlüsselt und automatisch synchronisiert<br>
-                    🌍 Funktioniert auf allen Geräten weltweit
+                    🌍 Funktioniert auf allen Geräten weltweit ohne zusätzliche Einrichtung
                 </p>
             </div>
         </div>
@@ -441,11 +399,6 @@
             <header class="text-center mb-6">
                 <h1 class="text-4xl md:text-5xl font-serif">Unser Hochzeitsplaner</h1>
                 <p class="text-lg mt-2 text-gray-400">Automatisch synchronisiert auf allen Geräten</p>
-                
-                <!-- Wedding Code Display -->
-                <div class="mt-2">
-                    <div class="wedding-code" id="current-wedding-code" style="font-size: 1rem; padding: 0.5rem;">DEMO-2024</div>
-                </div>
                 
                 <div class="mt-4 text-center">
                     <div class="card max-w-lg mx-auto">
@@ -545,28 +498,19 @@
                                 </div>
                                 
                                 <div class="flex justify-between items-center">
-                                    <span class="text-gray-400">Hochzeits-Code:</span>
-                                    <span id="sync-wedding-code" class="wedding-code" style="font-size: 1rem; padding: 0.25rem; margin: 0;">DEMO-2024</span>
-                                </div>
-                                
-                                <div class="flex justify-between items-center">
                                     <span class="text-gray-400">Letzte Sync:</span>
                                     <span id="last-sync-time" class="text-teal-400">Gerade eben</span>
                                 </div>
                                 
                                 <div class="flex justify-between items-center">
                                     <span class="text-gray-400">Verbundene Geräte:</span>
-                                    <span id="connected-devices" class="text-teal-400">1 Gerät</span>
+                                    <span id="connected-devices" class="text-teal-400">Automatisch</span>
                                 </div>
                                 
                                 <hr style="margin: 1rem 0; border-color: #4b5563;">
                                 
                                 <button onclick="forceSync()" class="btn-primary w-full">
                                     🔄 Jetzt synchronisieren
-                                </button>
-                                
-                                <button onclick="copyWeddingCode()" class="btn-secondary w-full">
-                                    📋 Hochzeits-Code kopieren
                                 </button>
                             </div>
                         </div>
@@ -608,26 +552,26 @@
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="text-center">
-                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔧</div>
-                                <h4 class="font-semibold mb-2">1. Code generieren</h4>
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔐</div>
+                                <h4 class="font-semibold mb-2">1. Automatische Anmeldung</h4>
                                 <p style="font-size: 0.875rem; color: #9ca3af;">
-                                    Erstellen Sie einen einzigartigen Hochzeits-Code für Ihre Planung.
+                                    Melden Sie sich mit Ihrem Passwort an - die Synchronisation startet automatisch.
                                 </p>
                             </div>
                             
                             <div class="text-center">
-                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📱</div>
-                                <h4 class="font-semibold mb-2">2. Geräte verbinden</h4>
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌍</div>
+                                <h4 class="font-semibold mb-2">2. Globale Synchronisation</h4>
                                 <p style="font-size: 0.875rem; color: #9ca3af;">
-                                    Geben Sie den Code auf allen Geräten ein, die synchronisiert werden sollen.
+                                    Ihre Daten werden automatisch über Cloudflare's globales Netzwerk synchronisiert.
                                 </p>
                             </div>
                             
                             <div class="text-center">
                                 <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
-                                <h4 class="font-semibold mb-2">3. Automatisch synchron</h4>
+                                <h4 class="font-semibold mb-2">3. Echzeit-Updates</h4>
                                 <p style="font-size: 0.875rem; color: #9ca3af;">
-                                    Alle Änderungen werden automatisch auf alle verbundenen Geräte übertragen.
+                                    Alle Änderungen werden sofort auf alle Ihre Geräte übertragen - vollautomatisch.
                                 </p>
                             </div>
                         </div>
@@ -635,7 +579,7 @@
                         <div class="mt-4 p-4" style="background-color: #374151; border-radius: 0.5rem;">
                             <p style="font-size: 0.875rem; color: #d1d5db;">
                                 <strong>🔒 Sicherheit:</strong> Ihre Daten werden verschlüsselt und sicher über Cloudflare's globales Netzwerk synchronisiert. 
-                                Der Hochzeits-Code dient als privater Schlüssel - teilen Sie ihn nur mit vertrauenswürdigen Personen.
+                                Melden Sie sich einfach mit dem gleichen Passwort auf jedem Gerät an, um automatisch Zugriff auf alle Ihre Hochzeitsdaten zu erhalten.
                             </p>
                         </div>
                     </div>
@@ -984,12 +928,12 @@
             }
             
             initializeDemoData() {
-                // Demo-Daten für bessere Präsentation
-                if (!this.storage.has('DEMO-2024')) {
+                // Demo-Daten für bessere Präsentation - globaler Key für alle Nutzer
+                const globalKey = 'wedding-planner-global';
+                if (!this.storage.has(globalKey)) {
                     const demoData = {
                         version: '1.0',
                         lastModified: Date.now(),
-                        weddingCode: 'DEMO-2024',
                         data: {
                             budget: 15000,
                             weddingDate: '2024-08-15',
@@ -1023,7 +967,7 @@
                             honeymoon: []
                         }
                     };
-                    this.storage.set('DEMO-2024', JSON.stringify(demoData));
+                    this.storage.set(globalKey, JSON.stringify(demoData));
                 }
             }
             
@@ -1056,7 +1000,8 @@
             VERSION: '1.0',
             POLL_INTERVAL: 5000, // 5 Sekunden
             RETRY_ATTEMPTS: 3,
-            AUTO_SYNC: true
+            AUTO_SYNC: true,
+            GLOBAL_KEY: 'wedding-planner-global' // Globaler Schlüssel für alle Nutzer
         };
 
         // ===== AUTH CONFIGURATION =====
@@ -1081,7 +1026,6 @@
         };
 
         let syncState = {
-            weddingCode: '',
             lastSync: 0,
             isOnline: false,
             syncInterval: null,
@@ -1094,14 +1038,13 @@
 
         // ===== SYNC FUNCTIONS =====
 
-        async function initializeSync(weddingCode) {
-            console.log('🔄 Sync initialisieren für Code:', weddingCode);
+        async function initializeSync() {
+            console.log('🔄 Auto-Sync wird initialisiert...');
             
-            syncState.weddingCode = weddingCode;
             syncState.isOnline = true;
             
             try {
-                // Erste Synchronisation
+                // Erste Synchronisation von der Cloud
                 await syncFromCloud();
                 
                 // Auto-Sync starten
@@ -1121,7 +1064,7 @@
         }
 
         async function syncToCloud() {
-            if (!syncState.weddingCode || syncState.syncInProgress) return;
+            if (syncState.syncInProgress) return;
             
             try {
                 syncState.syncInProgress = true;
@@ -1130,11 +1073,10 @@
                 const syncData = {
                     version: SYNC_CONFIG.VERSION,
                     lastModified: Date.now(),
-                    weddingCode: syncState.weddingCode,
                     data: appData
                 };
                 
-                await cloudflareKV.put(syncState.weddingCode, syncData);
+                await cloudflareKV.put(SYNC_CONFIG.GLOBAL_KEY, syncData);
                 
                 syncState.lastSync = Date.now();
                 syncState.isOnline = true;
@@ -1155,13 +1097,13 @@
         }
 
         async function syncFromCloud() {
-            if (!syncState.weddingCode || syncState.syncInProgress) return;
+            if (syncState.syncInProgress) return;
             
             try {
                 syncState.syncInProgress = true;
                 updateSyncIndicator('syncing');
                 
-                const cloudData = await cloudflareKV.get(syncState.weddingCode);
+                const cloudData = await cloudflareKV.get(SYNC_CONFIG.GLOBAL_KEY);
                 
                 if (cloudData && cloudData.data) {
                     // Intelligente Merge-Logik
@@ -1200,7 +1142,7 @@
             }
             
             syncState.syncInterval = setInterval(async () => {
-                if (SYNC_CONFIG.AUTO_SYNC && syncState.weddingCode) {
+                if (SYNC_CONFIG.AUTO_SYNC) {
                     await syncFromCloud();
                 }
             }, SYNC_CONFIG.POLL_INTERVAL);
@@ -1235,9 +1177,8 @@
             // Sync-Status im Tab aktualisieren
             const elements = {
                 'sync-status-text': syncState.isOnline ? '🟢 Online & Synchronisiert' : '🔴 Offline',
-                'sync-wedding-code': syncState.weddingCode,
                 'last-sync-time': syncState.lastSync ? formatRelativeTime(syncState.lastSync) : 'Nie',
-                'connected-devices': '1 Gerät' // Vereinfacht für Demo
+                'connected-devices': 'Automatisch synchronisiert'
             };
             
             Object.keys(elements).forEach(id => {
@@ -1249,12 +1190,6 @@
                     element.textContent = elements[id];
                 }
             });
-            
-            // Wedding Code in Header aktualisieren
-            const headerCode = document.getElementById('current-wedding-code');
-            if (headerCode) {
-                headerCode.textContent = syncState.weddingCode;
-            }
             
             updateSyncStats();
         }
@@ -1277,35 +1212,6 @@
             const dataSizeElement = document.getElementById('total-data-size');
             if (dataSizeElement) {
                 dataSizeElement.textContent = formatBytes(dataSize);
-            }
-        }
-
-        // ===== WEDDING CODE FUNCTIONS =====
-
-        function generateWeddingCode() {
-            const adjectives = ['TRAUM', 'LIEBE', 'HERZ', 'GLÜCK', 'MAGIC', 'GOLD', 'STERN', 'LICHT'];
-            const years = ['2024', '2025', '2026'];
-            
-            const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-            const year = years[Math.floor(Math.random() * years.length)];
-            const number = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-            
-            const code = `${adjective}-${year.slice(-2)}${number}`;
-            
-            document.getElementById('generated-code').textContent = code;
-            document.getElementById('new-wedding-code').classList.remove('hidden');
-            document.getElementById('wedding-code-input').value = code;
-            
-            console.log('🎲 Neuer Hochzeits-Code generiert:', code);
-        }
-
-        async function copyWeddingCode() {
-            try {
-                await navigator.clipboard.writeText(syncState.weddingCode);
-                showNotification('📋 Hochzeits-Code kopiert!', 'success');
-            } catch (error) {
-                console.error('❌ Fehler beim Kopieren:', error);
-                showNotification('❌ Kopieren fehlgeschlagen', 'error');
             }
         }
 
@@ -1348,15 +1254,14 @@
             return false;
         }
 
-        function setSession(weddingCode) {
+        function setSession() {
             const sessionData = {
                 authenticated: true,
-                weddingCode: weddingCode,
                 loginTime: Date.now(),
                 expires: Date.now() + AUTH_CONFIG.SESSION_DURATION
             };
             localStorage.setItem('weddingSession', JSON.stringify(sessionData));
-            console.log('🔐 Session erstellt für Code:', weddingCode);
+            console.log('🔐 Session erstellt');
         }
 
         function getSession() {
@@ -1383,7 +1288,6 @@
         function clearSession() {
             localStorage.removeItem('weddingSession');
             stopAutoSync();
-            syncState.weddingCode = '';
             syncState.isOnline = false;
         }
 
@@ -1398,20 +1302,14 @@
             }
 
             const password = document.getElementById('login-password').value;
-            const weddingCode = document.getElementById('wedding-code-input').value.trim().toUpperCase();
-            
-            if (!weddingCode) {
-                showLoginError('Bitte geben Sie einen Hochzeits-Code ein.');
-                return false;
-            }
             
             if (validatePassword(password)) {
                 console.log('✅ Passwort korrekt!');
                 setLoginAttempts(0);
-                setSession(weddingCode);
+                setSession();
                 
-                // Sync initialisieren
-                await initializeSync(weddingCode);
+                // Auto-Sync initialisieren
+                await initializeSync();
                 
                 showMainApp();
                 document.getElementById('login-password').value = '';
@@ -1482,8 +1380,8 @@
         function checkAuthentication() {
             const session = getSession();
             if (session && session.authenticated) {
-                // Sync mit gespeichertem Wedding Code initialisieren
-                initializeSync(session.weddingCode);
+                // Auto-Sync initialisieren
+                initializeSync();
                 showMainApp();
                 return true;
             } else {
@@ -1551,9 +1449,7 @@
                 console.log('💾 Lokale Daten gespeichert');
                 
                 // Nach lokaler Speicherung zur Cloud syncen
-                if (syncState.weddingCode) {
-                    syncToCloud();
-                }
+                syncToCloud();
                 
                 updateSyncStats();
                 return true;
@@ -1789,3 +1685,149 @@
             Object.keys(elements).forEach(id => {
                 const element = document.getElementById(id);
                 if (element) element.textContent = elements[id];
+            });
+        }
+
+        function updateGuestChart(guestCounts) {
+            const ctx = document.getElementById('guest-status-chart');
+            if (!ctx || typeof Chart === 'undefined') {
+                console.log('⚠️ Chart.js nicht verfügbar oder Canvas nicht gefunden');
+                return;
+            }
+
+            try {
+                if (guestStatusChart) {
+                    guestStatusChart.destroy();
+                }
+
+                guestStatusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Geplant', 'Eingeladen', 'Zugesagt', 'Abgesagt'],
+                        datasets: [{
+                            data: [guestCounts.planned, guestCounts.invited, guestCounts.accepted, guestCounts.declined],
+                            backgroundColor: ['#4A5568', '#F59E0B', '#10B981', '#EF4444'],
+                            borderColor: '#2d3748',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { 
+                                    color: '#e2e8f0',
+                                    font: { size: 12 }
+                                }
+                            }
+                        }
+                    }
+                });
+                console.log('📈 Gäste-Chart erstellt');
+            } catch (e) {
+                console.error('❌ Fehler beim Erstellen des Charts:', e);
+            }
+        }
+
+        // ===== RENDER FUNCTIONS =====
+
+        function renderGuests() {
+            const container = document.getElementById('guests-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            appData.guests.forEach(guest => {
+                const card = document.createElement('div');
+                card.className = 'card flex flex-col';
+                card.style.justifyContent = 'space-between';
+                
+                let eventInfo = '';
+                if (guest.attendsCivil && guest.attendsReception) eventInfo = 'Standesamt & Feier';
+                else if (guest.attendsCivil) eventInfo = 'Standesamt';
+                else if (guest.attendsReception) eventInfo = 'Feier';
+
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-lg">${guest.name}</h3>
+                        <p style="font-size: 0.875rem; color: #9ca3af;">${guest.relationship || ''}</p>
+                        <div class="mt-2 space-y-1" style="font-size: 0.875rem; color: #d1d5db;">
+                            <p>Status: ${guest.status}</p>
+                            <p>Eingeladen zu: ${eventInfo}</p>
+                            ${guest.notes ? `<p>Notizen: <span style="font-weight: 500; color: #f3f4f6;">${guest.notes}</span></p>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button class="btn-secondary flex-grow" onclick="editItem('guests', '${guest.id}')">Bearbeiten</button>
+                        <button class="btn-danger flex-grow" onclick="deleteItem('guests', '${guest.id}')">Löschen</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderTodos() {
+            const container = document.getElementById('todos-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            const priorityOrder = { 'Hoch': 1, 'Mittel': 2, 'Niedrig': 3 };
+            
+            appData.todos.sort((a, b) => {
+                const prioA = priorityOrder[a.priority] || 99;
+                const prioB = priorityOrder[b.priority] || 99;
+                if (prioA !== prioB) return prioA - prioB;
+                return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+            }).forEach(todo => {
+                const card = document.createElement('div');
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const isOverdue = todo.dueDate && new Date(todo.dueDate) < today && todo.status !== 'Erledigt';
+                card.className = `card ${isOverdue ? 'overdue' : ''}`;
+                
+                const priorityClass = {
+                    'Hoch': 'priority-hoch',
+                    'Mittel': 'priority-mittel',
+                    'Niedrig': 'priority-niedrig'
+                }[todo.priority] || 'priority-niedrig';
+
+                const statusClass = {
+                    'Erledigt': 'status-erledigt',
+                    'In Bearbeitung': 'status-in-bearbeitung',
+                    'Offen': 'status-open'
+                }[todo.status] || 'status-open';
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h3 class="font-bold text-lg">${todo.task}</h3>
+                            <p style="font-size: 0.875rem; color: #9ca3af;">${todo.category} / ${todo.responsibility}</p>
+                            ${todo.dueDate ? `<p style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.25rem;">Fällig: ${new Date(todo.dueDate).toLocaleDateString('de-DE')}</p>` : ''}
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="priority-badge ${priorityClass}">${todo.priority}</span>
+                            <span class="status-badge ${statusClass}">${todo.status}</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button class="btn-secondary flex-grow" onclick="editItem('todos', '${todo.id}')">Bearbeiten</button>
+                        <button class="btn-danger flex-grow" onclick="deleteItem('todos', '${todo.id}')">Löschen</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderExpenses() {
+            const container = document.getElementById('expenses-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            const guestCounts = calculateGuestCounts();
+            
+            appData.expenses.sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'))
+                .forEach(expense => {
+                    const card = document.createElement('div');
+                
